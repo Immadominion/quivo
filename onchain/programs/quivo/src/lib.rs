@@ -16,8 +16,9 @@ use anchor_lang::prelude::*;
 use solana_keccak_hasher as keccak;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use ephemeral_rollups_sdk::anchor::{delegate, ephemeral};
+use ephemeral_rollups_sdk::anchor::{commit, delegate, ephemeral};
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
+use ephemeral_rollups_sdk::ephem::MagicIntentBundleBuilder;
 
 declare_id!("BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG");
 
@@ -93,7 +94,8 @@ pub mod quivo {
         Ok(())
     }
 
-    /// Register a player (their own PDA — no shared-account contention when we lift to Tier-2).
+    /// Register a player. Their own PDA (keyed by wallet) means zero shared-account write
+    /// contention on the ER. Rent is paid by the relayer so joining is free for the player.
     pub fn join_game(ctx: Context<JoinGame>) -> Result<()> {
         let p = &mut ctx.accounts.player;
         p.game = ctx.accounts.game.key();
@@ -124,14 +126,30 @@ pub mod quivo {
         Ok(())
     }
 
-    /// TIER-2 — runs on the ER, session-key-signed, gasless. Records a player's answer so scoring is
-    /// reconstructible on-chain. Tier-1 leaves scoring to the server + a Merkle root; this is the lift.
+    /// TIER-2: delegate a Player PDA to the ER so answers can stream to it in real time. The Game
+    /// account stays on base (the ER clones it read-only), so base-layer settle keeps working.
+    pub fn delegate_player(ctx: Context<DelegatePlayer>, wallet: Pubkey) -> Result<()> {
+        let game_key = ctx.accounts.game.key();
+        ctx.accounts.delegate_player(
+            &ctx.accounts.payer,
+            &[PLAYER_SEED, game_key.as_ref(), wallet.as_ref()],
+            DelegateConfig {
+                commit_frequency_ms: u32::MAX, // commit once at game end, not per answer
+                validator: ctx.remaining_accounts.first().map(|a| a.key()),
+            },
+        )?;
+        Ok(())
+    }
+
+    /// TIER-2 — runs on the ER, gasless, sub-50ms. Records a player's answer so the score trail is
+    /// reconstructible on-chain, live during play. Signed by the game host (the relayer).
     pub fn submit_answer(
         ctx: Context<SubmitAnswer>,
         question_index: u8,
         choice: u8,
         bucket: u8,
     ) -> Result<()> {
+        require!(ctx.accounts.signer.key() == ctx.accounts.game.host, QuivoError::UnauthorizedSigner);
         let qi = question_index as usize;
         require!(qi < ctx.accounts.game.num_questions as usize, QuivoError::BadQuestionIndex);
         let p = &mut ctx.accounts.player;
@@ -139,6 +157,19 @@ pub mod quivo {
         p.choices[qi] = choice;
         p.buckets[qi] = bucket;
         p.answered_count += 1;
+        Ok(())
+    }
+
+    /// TIER-2 — runs on the ER at game end: commit + undelegate the Player PDAs (passed as
+    /// remaining_accounts) back to base layer, landing the full answer trail on Solana.
+    pub fn commit_players<'info>(ctx: Context<'info, CommitPlayers<'info>>) -> Result<()> {
+        MagicIntentBundleBuilder::new(
+            ctx.accounts.payer.to_account_info(),
+            ctx.accounts.magic_context.to_account_info(),
+            ctx.accounts.magic_program.to_account_info(),
+        )
+        .commit_and_undelegate(ctx.remaining_accounts)
+        .build_and_invoke()?;
         Ok(())
     }
 
@@ -283,16 +314,42 @@ pub struct HostOnly<'info> {
 
 #[derive(Accounts)]
 pub struct JoinGame<'info> {
+    /// The relayer — pays rent so joining is free for the player.
     #[account(mut)]
-    pub wallet: Signer<'info>,
+    pub payer: Signer<'info>,
+    /// CHECK: the player's wallet, recorded as their payout address (no signature required —
+    /// ephemeral wallets live on the player's phone and never touch the server).
+    pub wallet: UncheckedAccount<'info>,
     #[account(mut)]
     pub game: Account<'info, Game>,
     #[account(
-        init, payer = wallet, space = 8 + Player::INIT_SPACE,
+        init, payer = payer, space = 8 + Player::INIT_SPACE,
         seeds = [PLAYER_SEED, game.key().as_ref(), wallet.key().as_ref()], bump
     )]
     pub player: Account<'info, Player>,
     pub system_program: Program<'info, System>,
+}
+
+/// `#[delegate]` injects the `delegate_player(...)` helper + the delegation CPI accounts.
+#[delegate]
+#[derive(Accounts)]
+#[instruction(wallet: Pubkey)]
+pub struct DelegatePlayer<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// CHECK: the Player PDA being delegated; seeds enforced by the delegate CPI.
+    #[account(mut, del)]
+    pub player: UncheckedAccount<'info>,
+    pub game: Account<'info, Game>,
+}
+
+/// `#[commit]` injects `magic_context` and `magic_program`.
+/// remaining_accounts: the delegated Player PDAs to commit + undelegate back to base.
+#[commit]
+#[derive(Accounts)]
+pub struct CommitPlayers<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
 }
 
 /// `#[delegate]` injects the `delegate_game(...)` helper + the delegation CPI accounts.
@@ -352,4 +409,6 @@ pub enum QuivoError {
     RevealMismatch,
     #[msg("winner token account is not for the pot mint")]
     WrongMint,
+    #[msg("signer is not authorized for this game")]
+    UnauthorizedSigner,
 }

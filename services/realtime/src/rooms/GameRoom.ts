@@ -12,6 +12,7 @@ import { Schema, MapSchema, type } from "@colyseus/schema";
 import { keccak_256 } from "@noble/hashes/sha3";
 import {
   GAME,
+  latencyBucket,
   scoreAnswer,
   type GamePhase,
   type LeaderboardEntry,
@@ -130,8 +131,11 @@ export class GameRoom extends Room<GameState> {
       const elapsedMs = Date.now() - this.questionOpenedAt; // server clock = truth
       this.answers.set(client.sessionId, { choice: msg.choice, elapsedMs });
       player.hasAnswered = true;
-      // TODO(Tier-2): anchor (choice, latencyBucket(elapsedMs)) to the ER via the chain worker so
-      // scoring is reconstructible on-chain in real time.
+      // Tier-2: anchor the answer on the Ephemeral Rollup live — fire-and-forget; a failed anchor
+      // never affects gameplay or the payout.
+      this.chain
+        .submitAnswer(this.roomId, player.wallet, msg.questionIndex, msg.choice, latencyBucket(elapsedMs, this.questionMs))
+        .catch((e) => console.warn(`[room] answer anchor failed: ${e?.message ?? e}`));
     });
   }
 
@@ -144,6 +148,13 @@ export class GameRoom extends Room<GameState> {
     p.name = (options.name ?? "player").slice(0, 24);
     p.wallet = options.wallet ?? "";
     this.state.players.set(client.sessionId, p);
+    // Tier-2: create + delegate this player's PDA to the ER during the lobby (fire-and-forget —
+    // if it fails they still play and still get paid; only their live answer trail is skipped).
+    if (p.wallet) {
+      this.chain
+        .registerPlayer(this.roomId, p.wallet)
+        .catch((e) => console.warn(`[room] player registration failed (${p.name}): ${e?.message ?? e}`));
+    }
   }
 
   onLeave(client: Client) {

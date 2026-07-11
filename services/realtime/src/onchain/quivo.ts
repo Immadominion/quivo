@@ -51,6 +51,40 @@ export type Quivo = {
       ]
     },
     {
+      "name": "commitPlayers",
+      "docs": [
+        "TIER-2 — runs on the ER at game end: commit + undelegate the Player PDAs (passed as",
+        "remaining_accounts) back to base layer, landing the full answer trail on Solana."
+      ],
+      "discriminator": [
+        213,
+        164,
+        77,
+        97,
+        43,
+        169,
+        83,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "magicProgram",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magicContext",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "commitQuestions",
       "docs": [
         "Commit `keccak256(questions ‖ answers ‖ salt)` BEFORE any player joins. Host only, lobby only."
@@ -288,6 +322,186 @@ export type Quivo = {
         {
           "name": "seed",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "delegatePlayer",
+      "docs": [
+        "TIER-2: delegate a Player PDA to the ER so answers can stream to it in real time. The Game",
+        "account stays on base (the ER clones it read-only), so base-layer settle keeps working."
+      ],
+      "discriminator": [
+        235,
+        159,
+        245,
+        102,
+        161,
+        199,
+        254,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bufferPlayer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                158,
+                177,
+                147,
+                254,
+                22,
+                38,
+                4,
+                79,
+                40,
+                120,
+                178,
+                94,
+                182,
+                219,
+                156,
+                26,
+                219,
+                190,
+                85,
+                81,
+                72,
+                94,
+                9,
+                174,
+                178,
+                98,
+                101,
+                68,
+                181,
+                170,
+                178,
+                43
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegationRecordPlayer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegationProgram"
+            }
+          }
+        },
+        {
+          "name": "delegationMetadataPlayer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegationProgram"
+            }
+          }
+        },
+        {
+          "name": "player",
+          "writable": true
+        },
+        {
+          "name": "game"
+        },
+        {
+          "name": "ownerProgram",
+          "address": "BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG"
+        },
+        {
+          "name": "delegationProgram",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "wallet",
+          "type": "pubkey"
         }
       ]
     },
@@ -531,7 +745,8 @@ export type Quivo = {
     {
       "name": "joinGame",
       "docs": [
-        "Register a player (their own PDA — no shared-account contention when we lift to Tier-2)."
+        "Register a player. Their own PDA (keyed by wallet) means zero shared-account write",
+        "contention on the ER. Rent is paid by the relayer so joining is free for the player."
       ],
       "discriminator": [
         107,
@@ -545,9 +760,18 @@ export type Quivo = {
       ],
       "accounts": [
         {
-          "name": "wallet",
+          "name": "payer",
+          "docs": [
+            "The relayer — pays rent so joining is free for the player."
+          ],
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "wallet",
+          "docs": [
+            "ephemeral wallets live on the player's phone and never touch the server)."
+          ]
         },
         {
           "name": "game",
@@ -692,8 +916,8 @@ export type Quivo = {
     {
       "name": "submitAnswer",
       "docs": [
-        "TIER-2 — runs on the ER, session-key-signed, gasless. Records a player's answer so scoring is",
-        "reconstructible on-chain. Tier-1 leaves scoring to the server + a Merkle root; this is the lift."
+        "TIER-2 — runs on the ER, gasless, sub-50ms. Records a player's answer so the score trail is",
+        "reconstructible on-chain, live during play. Signed by the game host (the relayer)."
       ],
       "discriminator": [
         221,
@@ -803,6 +1027,11 @@ export type Quivo = {
       "code": 6006,
       "name": "wrongMint",
       "msg": "winner token account is not for the pot mint"
+    },
+    {
+      "code": 6007,
+      "name": "unauthorizedSigner",
+      "msg": "signer is not authorized for this game"
     }
   ],
   "types": [

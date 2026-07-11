@@ -1,16 +1,18 @@
 /**
- * Chain worker — the ONLY holder of the relayer/fee-payer key. Drives the on-chain lifecycle
- * (escrow, question commitment, settlement) and sponsors all gas so players never see a wallet
- * popup. The GameRoom talks to it through this interface only.
+ * Chain worker — the ONLY holder of the relayer/fee-payer key. Drives the on-chain lifecycle and
+ * sponsors all gas so players never see a wallet popup. The GameRoom talks to it through this
+ * interface only.
  *
- * Real mode needs QUIVO_KEYPAIR (path to a funded devnet keypair) or RELAYER_SECRET (JSON array).
- * Without either it runs as a logging STUB so the game loop still works offline.
+ * TIER-1 (base layer): escrow the pot + commit the question set in the lobby; settle the podium
+ * with the reveal at game end. Proven by src/chain/devnet-escrow.ts.
  *
- * Flow per game (proven by src/chain/devnet-escrow.ts):
- *   initGame:  [self-mint test-USDC once] → mint pot to relayer → initializeGame → fundPot →
- *              commitQuestions(keccak(reveal))          (base layer, during the lobby)
- *   settle:    create winner ATAs → settle(reveal) with winners as remaining_accounts
- *              (verifies reveal vs commitment on-chain, pays 60/30/10 from escrow)
+ * TIER-2 (MagicBlock Ephemeral Rollup): each player gets their own Player PDA, delegated to the ER
+ * at join. Every answer streams to the ER live during play (gasless, sub-50ms writes) — the score
+ * trail is on-chain WHILE the game runs. At game end the Player PDAs commit + undelegate back to
+ * base, then settle pays from escrow. The Game account never delegates, so settlement can never be
+ * hostage to ER timing — Tier-2 failures degrade gracefully to Tier-1, never brick the payout.
+ *
+ * Real mode needs QUIVO_KEYPAIR (path) or RELAYER_SECRET (JSON array). Otherwise: logging stub.
  */
 import { readFileSync } from "node:fs";
 import * as anchor from "@coral-xyz/anchor";
@@ -45,6 +47,10 @@ export interface SettleArgs {
 export interface ChainWorker {
   readonly mode: "real" | "stub";
   initGame(args: InitGameArgs): Promise<{ gamePubkey: string }>;
+  /** Tier-2: create + delegate the player's PDA so answers can stream to the ER. */
+  registerPlayer(gameId: string, wallet: string): Promise<void>;
+  /** Tier-2: anchor one answer on the ER, live. Fire-and-forget from gameplay. */
+  submitAnswer(gameId: string, wallet: string, questionIndex: number, choice: number, bucket: number): Promise<void>;
   settle(args: SettleArgs): Promise<Settlement>;
 }
 
@@ -55,6 +61,13 @@ interface GameCtx {
   potVault: PublicKey;
   mint: PublicKey;
   potAmount: bigint;
+  /** wallet base58 → delegated Player PDA */
+  players: Map<string, PublicKey>;
+  /** wallet base58 → in-flight registration (answers wait for it instead of dropping) */
+  playersPending: Map<string, Promise<void>>;
+  /** memoized ER-bound program — a promise set synchronously so concurrent callers can't race */
+  erReady?: Promise<anchor.Program>;
+  anchored: number;
 }
 
 function loadRelayer(): Keypair | null {
@@ -63,6 +76,23 @@ function loadRelayer(): Keypair | null {
   const path = process.env.QUIVO_KEYPAIR;
   if (path) return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(path, "utf8"))));
   return null;
+}
+
+/** Resolve the ER endpoint for a delegated account via the MagicBlock router. */
+async function resolveErEndpoint(account: PublicKey): Promise<string> {
+  const router = process.env.ROUTER_ENDPOINT ?? "https://devnet-router.magicblock.app/";
+  try {
+    const res = await fetch(router, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getDelegationStatus", params: [account.toBase58()] }),
+    });
+    const body: any = await res.json();
+    if (body?.result?.isDelegated && body.result.fqdn) return body.result.fqdn;
+  } catch {
+    /* fall through */
+  }
+  return process.env.EPHEMERAL_RPC || "https://devnet.magicblock.app";
 }
 
 export function makeChainWorker(): ChainWorker {
@@ -77,7 +107,7 @@ export function makeChainWorker(): ChainWorker {
   const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(relayer), { commitment: "confirmed" });
   const idl = JSON.parse(readFileSync(new URL("../onchain/quivo.json", import.meta.url), "utf8"));
   const program = new anchor.Program(idl, provider);
-  const games = new Map<string, GameCtx>();
+  const games = new Map<string, Promise<GameCtx>>();
 
   // One test-USDC mint per process (POT_MINT env overrides — then the relayer ATA must be pre-funded).
   let mintPromise: Promise<PublicKey> | null = null;
@@ -89,63 +119,189 @@ export function makeChainWorker(): ChainWorker {
     return mintPromise;
   };
 
+  const playerPda = (game: PublicKey, wallet: PublicKey) =>
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("player"), game.toBuffer(), wallet.toBuffer()],
+      program.programId,
+    )[0];
+
+  /** Lazily build the ER-bound program the first time we need to write to the rollup. The promise
+   *  is assigned synchronously, so concurrent answer bursts share ONE router resolution. */
+  function erFor(ctx: GameCtx): Promise<anchor.Program> {
+    ctx.erReady ??= (async () => {
+      const anyPda = ctx.players.values().next().value as PublicKey | undefined;
+      const endpoint = await resolveErEndpoint(anyPda ?? ctx.game);
+      // 'processed' — the ER's single sequencer finalizes instantly; waiting for 'confirmed' only
+      // adds client-side polling latency to writes that already executed in milliseconds.
+      const erConn = new Connection(endpoint, { commitment: "processed" });
+      const erProvider = new anchor.AnchorProvider(erConn, new anchor.Wallet(relayer!), {
+        commitment: "processed",
+        preflightCommitment: "processed",
+      });
+      console.log(`[chain] ⚡ ER endpoint ${endpoint}`);
+      return new anchor.Program(idl, erProvider);
+    })();
+    return ctx.erReady;
+  }
+
   console.log(`[chain] REAL mode — relayer ${relayer.publicKey.toBase58()} → ${rpc}`);
 
   return {
     mode: "real",
 
-    async initGame(args) {
-      const mint = await getMint();
-      // Fund the relayer with the pot, then escrow it (self-mint => we are mint authority).
-      const relayerAta = await retry("relayerAta", () =>
-        getOrCreateAssociatedTokenAccount(connection, relayer, mint, relayer.publicKey),
-      );
-      if (!process.env.POT_MINT) {
-        await retry("mintPot", () => mintTo(connection, relayer, mint, relayerAta.address, relayer, args.potAmount));
+    initGame(args) {
+      const promise = (async (): Promise<GameCtx> => {
+        const mint = await getMint();
+        const relayerAta = await retry("relayerAta", () =>
+          getOrCreateAssociatedTokenAccount(connection, relayer, mint, relayer.publicKey),
+        );
+        if (!process.env.POT_MINT) {
+          await retry("mintPot", () => mintTo(connection, relayer, mint, relayerAta.address, relayer, args.potAmount));
+        }
+
+        const seed = new BN(Date.now());
+        const seedLe = seed.toArrayLike(Buffer, "le", 8);
+        const [game] = PublicKey.findProgramAddressSync(
+          [Buffer.from("game"), relayer.publicKey.toBuffer(), seedLe],
+          program.programId,
+        );
+        const [vaultAuthority] = PublicKey.findProgramAddressSync(
+          [Buffer.from("vault"), game.toBuffer()],
+          program.programId,
+        );
+        const potVault = getAssociatedTokenAddressSync(mint, vaultAuthority, true);
+
+        await retry("initializeGame", () =>
+          program.methods
+            .initializeGame(seed, args.numQuestions, [...args.prizeSplit])
+            .accountsPartial({
+              host: relayer.publicKey,
+              game,
+              potMint: mint,
+              vaultAuthority,
+              potVault,
+              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+              tokenProgram: TOKEN_PROGRAM_ID,
+              systemProgram: SystemProgram.programId,
+            })
+            .rpc(),
+        );
+        await retry("fundPot", () =>
+          program.methods
+            .fundPot(new BN(args.potAmount.toString()))
+            .accountsPartial({
+              funder: relayer.publicKey,
+              funderAta: relayerAta.address,
+              potVault,
+              game,
+              tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .rpc(),
+        );
+        await retry("commitQuestions", () =>
+          program.methods
+            .commitQuestions(Array.from(args.questionCommitment))
+            .accountsPartial({ host: relayer.publicKey, game })
+            .rpc(),
+        );
+
+        console.log(`[chain] game ${args.gameId} escrowed ${Number(args.potAmount) / 1e6} USDC → ${game.toBase58()}`);
+        return {
+          seed,
+          game,
+          vaultAuthority,
+          potVault,
+          mint,
+          potAmount: args.potAmount,
+          players: new Map(),
+          playersPending: new Map(),
+          anchored: 0,
+        };
+      })();
+      games.set(args.gameId, promise);
+      return promise.then((ctx) => ({ gamePubkey: ctx.game.toBase58() }));
+    },
+
+    /** Tier-2: join_game (relayer pays rent) + delegate_player → the PDA now lives on the ER. */
+    async registerPlayer(gameId, wallet) {
+      const ctxPromise = games.get(gameId);
+      if (!ctxPromise) throw new Error(`no on-chain game for room ${gameId}`);
+      const ctx = await ctxPromise;
+      const walletPk = new PublicKey(wallet);
+      const pda = playerPda(ctx.game, walletPk);
+
+      const registration = (async () => {
+        await retry("joinGame", () =>
+          program.methods
+            .joinGame()
+            .accountsPartial({
+              payer: relayer.publicKey,
+              wallet: walletPk,
+              game: ctx.game,
+              player: pda,
+              systemProgram: SystemProgram.programId,
+            })
+            .rpc(),
+        );
+        await retry("delegatePlayer", () =>
+          program.methods
+            .delegatePlayer(walletPk)
+            .accountsPartial({ payer: relayer.publicKey, player: pda, game: ctx.game })
+            .rpc(),
+        );
+        ctx.players.set(wallet, pda);
+        console.log(`[chain] ⚡ player ${wallet.slice(0, 4)}… delegated to ER (${pda.toBase58().slice(0, 8)}…)`);
+      })();
+      ctx.playersPending.set(wallet, registration);
+      await registration;
+    },
+
+    /** Tier-2: anchor one answer on the ER — gasless, milliseconds, live during play. */
+    async submitAnswer(gameId, wallet, questionIndex, choice, bucket) {
+      const ctxPromise = games.get(gameId);
+      if (!ctxPromise) return;
+      const ctx = await ctxPromise;
+      let pda = ctx.players.get(wallet);
+      if (!pda) {
+        // Registration may still be in flight (short lobby) — wait for it instead of dropping.
+        const pending = ctx.playersPending.get(wallet);
+        if (pending) {
+          await pending.catch(() => {});
+          pda = ctx.players.get(wallet);
+        }
       }
-
-      const seed = new BN(Date.now());
-      const seedLe = seed.toArrayLike(Buffer, "le", 8);
-      const [game] = PublicKey.findProgramAddressSync(
-        [Buffer.from("game"), relayer.publicKey.toBuffer(), seedLe],
-        program.programId,
-      );
-      const [vaultAuthority] = PublicKey.findProgramAddressSync([Buffer.from("vault"), game.toBuffer()], program.programId);
-      const potVault = getAssociatedTokenAddressSync(mint, vaultAuthority, true);
-
-      await retry("initializeGame", () =>
-        program.methods
-          .initializeGame(seed, args.numQuestions, [...args.prizeSplit])
-          .accounts({
-            host: relayer.publicKey,
-            game,
-            potMint: mint,
-            vaultAuthority,
-            potVault,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-          })
-          .rpc(),
-      );
-      await retry("fundPot", () =>
-        program.methods
-          .fundPot(new BN(args.potAmount.toString()))
-          .accounts({ funder: relayer.publicKey, funderAta: relayerAta.address, potVault, game, tokenProgram: TOKEN_PROGRAM_ID })
-          .rpc(),
-      );
-      await retry("commitQuestions", () =>
-        program.methods.commitQuestions(Array.from(args.questionCommitment)).accounts({ host: relayer.publicKey, game }).rpc(),
-      );
-
-      games.set(args.gameId, { seed, game, vaultAuthority, potVault, mint, potAmount: args.potAmount });
-      console.log(`[chain] game ${args.gameId} escrowed ${Number(args.potAmount) / 1e6} USDC → ${game.toBase58()}`);
-      return { gamePubkey: game.toBase58() };
+      if (!pda) return; // player never registered on-chain — gameplay is unaffected
+      const er = await erFor(ctx);
+      const t0 = Date.now();
+      await er.methods
+        .submitAnswer(questionIndex, choice, bucket)
+        .accountsPartial({ signer: relayer.publicKey, game: ctx.game, player: pda })
+        .rpc({ skipPreflight: true });
+      ctx.anchored++;
+      console.log(`[chain] ⚡ answer anchored on ER  q${questionIndex} ${wallet.slice(0, 4)}…  ${Date.now() - t0}ms`);
     },
 
     async settle(args) {
-      const ctx = games.get(args.gameId);
-      if (!ctx) throw new Error(`no on-chain game for room ${args.gameId} (initGame failed or never ran)`);
+      const ctxPromise = games.get(args.gameId);
+      if (!ctxPromise) throw new Error(`no on-chain game for room ${args.gameId} (initGame failed or never ran)`);
+      const ctx = await ctxPromise;
+
+      // Tier-2 epilogue: commit + undelegate the answer trail back to base. Never blocks the payout.
+      console.log(`[chain] settle: players=${ctx.players.size} anchored=${ctx.anchored} er=${!!ctx.erReady}`);
+      if (ctx.players.size > 0 && ctx.erReady) {
+        try {
+          const er = await erFor(ctx);
+          const pdas = [...ctx.players.values()];
+          const sig = await er.methods
+            .commitPlayers()
+            .accountsPartial({ payer: relayer.publicKey })
+            .remainingAccounts(pdas.map((pubkey) => ({ pubkey, isWritable: true, isSigner: false })))
+            .rpc({ skipPreflight: true });
+          console.log(`[chain] ⚡ answer trail (${ctx.anchored} answers, ${pdas.length} players) committing to base — ${sig}`);
+        } catch (e: any) {
+          console.warn(`[chain] commit_players failed (payout unaffected): ${e?.message ?? e}`);
+        }
+      }
 
       // Valid winner wallets, podium order. Fewer winners than podium slots → surplus rolls to #1.
       const valid = args.ranking
@@ -172,7 +328,7 @@ export function makeChainWorker(): ChainWorker {
       const txSig = await retry("settle", () =>
         program.methods
           .settle(Buffer.from(args.reveal))
-          .accounts({
+          .accountsPartial({
             payer: relayer.publicKey,
             game: ctx.game,
             vaultAuthority: ctx.vaultAuthority,
@@ -203,6 +359,8 @@ function stubWorker(): ChainWorker {
     async initGame(args) {
       return { gamePubkey: `stub:${args.gameId}` };
     },
+    async registerPlayer() {},
+    async submitAnswer() {},
     async settle(args) {
       const amounts = splitPot(1_000_000n, args.prizeSplit);
       const winners: WinnerPayout[] = args.ranking.slice(0, amounts.length).map((r, i) => ({
