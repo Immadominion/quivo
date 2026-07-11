@@ -1,0 +1,930 @@
+{
+  "address": "BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG",
+  "metadata": {
+    "name": "quivo",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Quivo — live game-show settlement + fairness (Solana + MagicBlock Ephemeral Rollups)."
+  },
+  "instructions": [
+    {
+      "name": "close_and_root",
+      "docs": [
+        "Post the Merkle root of all answers (Tier-1 auditability) and move to settling."
+      ],
+      "discriminator": [
+        77,
+        78,
+        219,
+        133,
+        117,
+        229,
+        60,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "host",
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "answers_root",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "commit_questions",
+      "docs": [
+        "Commit `keccak256(questions ‖ answers ‖ salt)` BEFORE any player joins. Host only, lobby only."
+      ],
+      "discriminator": [
+        48,
+        38,
+        138,
+        192,
+        78,
+        223,
+        172,
+        8
+      ],
+      "accounts": [
+        {
+          "name": "host",
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "delegate_game",
+      "docs": [
+        "Delegate the game account to the ER validator for the duration of play.",
+        "Commit once at settlement (not per answer): pass `commit_frequency_ms = u32::MAX`."
+      ],
+      "discriminator": [
+        116,
+        183,
+        70,
+        107,
+        112,
+        223,
+        122,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "host",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "buffer_game",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                158,
+                177,
+                147,
+                254,
+                22,
+                38,
+                4,
+                79,
+                40,
+                120,
+                178,
+                94,
+                182,
+                219,
+                156,
+                26,
+                219,
+                190,
+                85,
+                81,
+                72,
+                94,
+                9,
+                174,
+                178,
+                98,
+                101,
+                68,
+                181,
+                170,
+                178,
+                43
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_game",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_game",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "game",
+          "writable": true
+        },
+        {
+          "name": "game_pda",
+          "docs": [
+            "Read-only view to authorize the host (the delegated account is Unchecked above)."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "host"
+              },
+              {
+                "kind": "arg",
+                "path": "seed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_program",
+          "address": "BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "seed",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "fund_pot",
+      "docs": [
+        "Move prize funds into escrow. Anyone (host or a sponsor) may fund."
+      ],
+      "discriminator": [
+        128,
+        40,
+        51,
+        21,
+        246,
+        133,
+        100,
+        196
+      ],
+      "accounts": [
+        {
+          "name": "funder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "funder_ata",
+          "writable": true
+        },
+        {
+          "name": "pot_vault",
+          "writable": true
+        },
+        {
+          "name": "game"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_game",
+      "docs": [
+        "Create the game + its escrow vault. `prize_split` must sum to 100 (e.g. [60,30,10])."
+      ],
+      "discriminator": [
+        44,
+        62,
+        102,
+        247,
+        126,
+        208,
+        130,
+        215
+      ],
+      "accounts": [
+        {
+          "name": "host",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "host"
+              },
+              {
+                "kind": "arg",
+                "path": "seed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pot_mint"
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pot_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault_authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pot_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "seed",
+          "type": "u64"
+        },
+        {
+          "name": "num_questions",
+          "type": "u8"
+        },
+        {
+          "name": "prize_split",
+          "type": {
+            "array": [
+              "u8",
+              3
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "join_game",
+      "docs": [
+        "Register a player (their own PDA — no shared-account contention when we lift to Tier-2)."
+      ],
+      "discriminator": [
+        107,
+        112,
+        18,
+        38,
+        56,
+        173,
+        60,
+        128
+      ],
+      "accounts": [
+        {
+          "name": "wallet",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game"
+              },
+              {
+                "kind": "account",
+                "path": "wallet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "process_undelegation",
+      "discriminator": [
+        196,
+        28,
+        41,
+        206,
+        48,
+        37,
+        51,
+        167
+      ],
+      "accounts": [
+        {
+          "name": "base_account",
+          "writable": true
+        },
+        {
+          "name": "buffer"
+        },
+        {
+          "name": "payer",
+          "writable": true
+        },
+        {
+          "name": "system_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "account_seeds",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "settle",
+      "docs": [
+        "Settle: verify the question reveal against the commitment, pay the podium from escrow, and",
+        "commit + undelegate the game account back to base layer — one Magic Action.",
+        "",
+        "Winners' token accounts are passed as `remaining_accounts` in podium order (1st..=Nth); the",
+        "off-chain worker computes the ranking (Tier-1) or it is derived from on-chain answers (Tier-2)."
+      ],
+      "discriminator": [
+        175,
+        42,
+        185,
+        87,
+        144,
+        131,
+        102,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pot_vault",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magic_context",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "reveal",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "submit_answer",
+      "docs": [
+        "TIER-2 — runs on the ER, session-key-signed, gasless. Records a player's answer so scoring is",
+        "reconstructible on-chain. Tier-1 leaves scoring to the server + a Merkle root; this is the lift."
+      ],
+      "discriminator": [
+        221,
+        73,
+        184,
+        157,
+        1,
+        150,
+        231,
+        48
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "docs": [
+            "Session key or the player's own wallet (scoped, gasless on the ER)."
+          ],
+          "signer": true
+        },
+        {
+          "name": "game",
+          "relations": [
+            "player"
+          ]
+        },
+        {
+          "name": "player",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "question_index",
+          "type": "u8"
+        },
+        {
+          "name": "choice",
+          "type": "u8"
+        },
+        {
+          "name": "bucket",
+          "type": "u8"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Game",
+      "discriminator": [
+        27,
+        90,
+        166,
+        125,
+        74,
+        100,
+        121,
+        18
+      ]
+    },
+    {
+      "name": "Player",
+      "discriminator": [
+        205,
+        222,
+        112,
+        7,
+        165,
+        155,
+        206,
+        218
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "BadQuestionCount",
+      "msg": "question count must be 1..=MAX_QUESTIONS"
+    },
+    {
+      "code": 6001,
+      "name": "BadPrizeSplit",
+      "msg": "prize split must sum to 100"
+    },
+    {
+      "code": 6002,
+      "name": "WrongPhase",
+      "msg": "wrong game phase for this action"
+    },
+    {
+      "code": 6003,
+      "name": "BadQuestionIndex",
+      "msg": "question index out of range"
+    },
+    {
+      "code": 6004,
+      "name": "AlreadyAnswered",
+      "msg": "this question was already answered"
+    },
+    {
+      "code": 6005,
+      "name": "RevealMismatch",
+      "msg": "revealed questions do not match the commitment"
+    }
+  ],
+  "types": [
+    {
+      "name": "Game",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "host",
+            "type": "pubkey"
+          },
+          {
+            "name": "pot_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "pot_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "question_commitment",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "num_questions",
+            "type": "u8"
+          },
+          {
+            "name": "prize_split",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "players",
+            "type": "u32"
+          },
+          {
+            "name": "answers_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "seed",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Player",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "game",
+            "type": "pubkey"
+          },
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "score",
+            "type": "u64"
+          },
+          {
+            "name": "answered_count",
+            "type": "u16"
+          },
+          {
+            "name": "prized",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "choices",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "buckets",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

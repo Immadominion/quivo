@@ -15,8 +15,13 @@
     "@colyseus/redis-driver": "^0.16.0",
     "@colyseus/redis-presence": "^0.16.0",
     "@colyseus/schema": "^3.0.0",
+    "@coral-xyz/anchor": "0.32.1",
+    "@magicblock-labs/ephemeral-rollups-sdk": "0.14.3",
+    "@noble/hashes": "^1.6.0",
     "@quivo/protocol": "workspace:*",
+    "@solana/spl-token": "^0.4.9",
     "@solana/web3.js": "^1.98.0",
+    "bn.js": "^5.2.1",
     "colyseus": "^0.16.4"
   },
   "devDependencies": {
