@@ -184,10 +184,12 @@ export function makeChainWorker(): ChainWorker {
       );
 
       const amounts = splitPot(ctx.potAmount, args.prizeSplit);
+      // Padded slots (fewer players than podium spots) actually paid winner #1 — report the truth.
+      const surplus = amounts.slice(podium.length).reduce((a, b) => a + b, 0n);
       const winners: WinnerPayout[] = podium.map((w, i) => ({
         wallet: w.entry.wallet,
         rank: i + 1,
-        amount: amounts[i].toString(),
+        amount: (i === 0 ? amounts[0] + surplus : amounts[i]).toString(),
       }));
       console.log(`[chain] game ${args.gameId} settled → ${txSig}`);
       return { txSig, potMint: ctx.mint.toBase58(), winners };

@@ -3,9 +3,24 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "echo '[stage] TODO: scaffold Next.js — see apps/stage/README.md'",
-    "build": "echo '[stage] build TODO (Next.js)'",
-    "typecheck": "echo '[stage] ok'",
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "colyseus.js": "^0.16.0",
+    "next": "^15.1.6",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.3"
   }
 }
