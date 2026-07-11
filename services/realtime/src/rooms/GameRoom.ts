@@ -64,6 +64,8 @@ interface CreateOptions {
   potAmount?: string; // base units (bigint as string over the wire)
   potMint?: string;
   prizeSplit?: number[];
+  questionDurationMs?: number; // override for tests / fast rounds
+  revealDurationMs?: number;
 }
 
 export class GameRoom extends Room<GameState> {
@@ -77,6 +79,9 @@ export class GameRoom extends Room<GameState> {
   private potAmount = 0n;
   private potMint = "So11111111111111111111111111111111111111112";
   private prizeSplit: number[] = [...GAME.DEFAULT_PRIZE_SPLIT];
+  private questionMs: number = GAME.QUESTION_DURATION_MS;
+  private revealMs: number = GAME.REVEAL_DURATION_MS;
+  private timer: ReturnType<typeof setTimeout> | null = null;
 
   onCreate(options: CreateOptions) {
     this.chain = options.chain;
@@ -84,6 +89,10 @@ export class GameRoom extends Room<GameState> {
     if (options.potAmount) this.potAmount = BigInt(options.potAmount);
     if (options.potMint) this.potMint = options.potMint;
     if (options.prizeSplit?.length) this.prizeSplit = options.prizeSplit;
+    // Timing is a server/config concern (not client-dictated). Env override wins for tests.
+    this.questionMs = Number(process.env.QUIVO_QUESTION_MS ?? options.questionDurationMs ?? GAME.QUESTION_DURATION_MS);
+    this.revealMs = Number(process.env.QUIVO_REVEAL_MS ?? options.revealDurationMs ?? GAME.REVEAL_DURATION_MS);
+    console.log(`[room] create q=${this.questionMs}ms r=${this.revealMs}ms pot=${this.potAmount}`);
     this.setState(new GameState());
 
     this.onMessage("host:start", (client) => {
@@ -107,7 +116,10 @@ export class GameRoom extends Room<GameState> {
   }
 
   onJoin(client: Client, options: { name?: string; wallet?: string; host?: boolean }) {
-    if (options.host && !this.hostId) this.hostId = client.sessionId;
+    if (options.host && !this.hostId) {
+      this.hostId = client.sessionId; // the host runs the stage — a presenter, not a contestant
+      return;
+    }
     const p = new PlayerState();
     p.name = (options.name ?? "player").slice(0, 24);
     p.wallet = options.wallet ?? "";
@@ -119,6 +131,16 @@ export class GameRoom extends Room<GameState> {
     if (this.state.phase === "lobby") this.state.players.delete(client.sessionId);
   }
 
+  onDispose() {
+    if (this.timer) clearTimeout(this.timer);
+  }
+
+  /** One pending phase-transition timer (the game is strictly sequential). */
+  private schedule(fn: () => void, ms: number) {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(fn, ms);
+  }
+
   private startQuestion(index: number) {
     const q = this.questions[index];
     this.answers.clear();
@@ -126,16 +148,16 @@ export class GameRoom extends Room<GameState> {
     this.state.phase = "question";
     this.state.questionIndex = index;
     this.questionOpenedAt = Date.now();
-    this.state.endsAt = this.questionOpenedAt + GAME.QUESTION_DURATION_MS;
+    this.state.endsAt = this.questionOpenedAt + this.questionMs;
 
     const question: QuestionPublic = {
       index,
       prompt: q.prompt,
       options: q.options,
-      durationMs: GAME.QUESTION_DURATION_MS,
+      durationMs: this.questionMs,
     };
     this.broadcast("question", { question, endsAt: this.state.endsAt });
-    this.clock.setTimeout(() => this.closeQuestion(index), GAME.QUESTION_DURATION_MS);
+    this.schedule(() => this.closeQuestion(index), this.questionMs);
   }
 
   private closeQuestion(index: number) {
@@ -143,7 +165,7 @@ export class GameRoom extends Room<GameState> {
     const q = this.questions[index];
     this.state.players.forEach((p, sid) => {
       const a = this.answers.get(sid);
-      const gained = a ? scoreAnswer(a.choice === q.correct, a.elapsedMs, GAME.QUESTION_DURATION_MS) : 0;
+      const gained = a ? scoreAnswer(a.choice === q.correct, a.elapsedMs, this.questionMs) : 0;
       p.lastDelta = gained;
       p.score += gained;
     });
@@ -155,10 +177,7 @@ export class GameRoom extends Room<GameState> {
     });
 
     const isLast = index >= this.questions.length - 1;
-    this.clock.setTimeout(
-      () => (isLast ? void this.finish() : this.startQuestion(index + 1)),
-      GAME.REVEAL_DURATION_MS,
-    );
+    this.schedule(() => (isLast ? void this.finish() : this.startQuestion(index + 1)), this.revealMs);
   }
 
   private async finish() {

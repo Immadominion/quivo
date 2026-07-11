@@ -13,14 +13,14 @@
 //!
 //! Placeholder program id — run `anchor keys sync` after the first `anchor build`.
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak;
+use solana_keccak_hasher as keccak;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use ephemeral_rollups_sdk::anchor::{commit, delegate, ephemeral};
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
 use ephemeral_rollups_sdk::ephem::MagicIntentBundleBuilder;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG");
 
 pub const GAME_SEED: &[u8] = b"game";
 pub const VAULT_SEED: &[u8] = b"vault";
@@ -75,7 +75,7 @@ pub mod quivo {
     pub fn fund_pot(ctx: Context<FundPot>, amount: u64) -> Result<()> {
         token::transfer(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 Transfer {
                     from: ctx.accounts.funder_ata.to_account_info(),
                     to: ctx.accounts.pot_vault.to_account_info(),
@@ -86,7 +86,7 @@ pub mod quivo {
         )
     }
 
-    /// Commit `keccak(questions ‖ answers ‖ salt)` BEFORE any player joins. Host only, lobby only.
+    /// Commit `keccak256(questions ‖ answers ‖ salt)` BEFORE any player joins. Host only, lobby only.
     pub fn commit_questions(ctx: Context<HostOnly>, commitment: [u8; 32]) -> Result<()> {
         let g = &mut ctx.accounts.game;
         require!(g.status == status::LOBBY, QuivoError::WrongPhase);
@@ -156,7 +156,10 @@ pub mod quivo {
     ///
     /// Winners' token accounts are passed as `remaining_accounts` in podium order (1st..=Nth); the
     /// off-chain worker computes the ranking (Tier-1) or it is derived from on-chain answers (Tier-2).
-    pub fn settle(ctx: Context<Settle>, reveal: Vec<u8>) -> Result<()> {
+    pub fn settle<'info>(
+        ctx: Context<'info, Settle<'info>>,
+        reveal: Vec<u8>,
+    ) -> Result<()> {
         let (game_key, vault_bump, prize_split, pot_mint) = {
             let g = &ctx.accounts.game;
             // Fairness: the revealed question set must match the pre-committed hash.
@@ -180,7 +183,7 @@ pub mod quivo {
             let _ = pot_mint;
             token::transfer(
                 CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.token_program.key(),
                     Transfer {
                         from: ctx.accounts.pot_vault.to_account_info(),
                         to: winner_ata.to_account_info(),
