@@ -132,9 +132,18 @@ export class GameRoom extends Room<GameState> {
       this.answers.set(client.sessionId, { choice: msg.choice, elapsedMs });
       player.hasAnswered = true;
       // Tier-2: anchor the answer on the Ephemeral Rollup live — fire-and-forget; a failed anchor
-      // never affects gameplay or the payout.
+      // never affects gameplay or the payout. On success the stage shows it in the on-chain ticker.
+      const t0 = Date.now();
       this.chain
         .submitAnswer(this.roomId, player.wallet, msg.questionIndex, msg.choice, latencyBucket(elapsedMs, this.questionMs))
+        .then(() =>
+          this.broadcast("anchored", {
+            name: player.name,
+            wallet: player.wallet,
+            questionIndex: msg.questionIndex,
+            ms: Date.now() - t0,
+          }),
+        )
         .catch((e) => console.warn(`[room] answer anchor failed: ${e?.message ?? e}`));
     });
   }
