@@ -9,6 +9,7 @@
  */
 import { Room, type Client } from "colyseus";
 import { Schema, MapSchema, type } from "@colyseus/schema";
+import { keccak_256 } from "@noble/hashes/sha3";
 import {
   GAME,
   scoreAnswer,
@@ -62,7 +63,6 @@ interface CreateOptions {
   chain: ChainWorker;
   questions?: Question[];
   potAmount?: string; // base units (bigint as string over the wire)
-  potMint?: string;
   prizeSplit?: number[];
   questionDurationMs?: number; // override for tests / fast rounds
   revealDurationMs?: number;
@@ -77,23 +77,43 @@ export class GameRoom extends Room<GameState> {
   private questionOpenedAt = 0;
   private hostId: string | null = null;
   private potAmount = 0n;
-  private potMint = "So11111111111111111111111111111111111111112";
   private prizeSplit: number[] = [...GAME.DEFAULT_PRIZE_SPLIT];
   private questionMs: number = GAME.QUESTION_DURATION_MS;
   private revealMs: number = GAME.REVEAL_DURATION_MS;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  /** The exact bytes committed on-chain at creation and revealed at settle (commit-reveal). */
+  private revealBytes!: Uint8Array;
+  private chainInit: Promise<{ gamePubkey: string }> | null = null;
 
   onCreate(options: CreateOptions) {
     this.chain = options.chain;
     this.questions = options.questions?.length ? options.questions : DEMO_QUESTIONS;
     if (options.potAmount) this.potAmount = BigInt(options.potAmount);
-    if (options.potMint) this.potMint = options.potMint;
     if (options.prizeSplit?.length) this.prizeSplit = options.prizeSplit;
     // Timing is a server/config concern (not client-dictated). Env override wins for tests.
     this.questionMs = Number(process.env.QUIVO_QUESTION_MS ?? options.questionDurationMs ?? GAME.QUESTION_DURATION_MS);
     this.revealMs = Number(process.env.QUIVO_REVEAL_MS ?? options.revealDurationMs ?? GAME.REVEAL_DURATION_MS);
-    console.log(`[room] create q=${this.questionMs}ms r=${this.revealMs}ms pot=${this.potAmount}`);
+    console.log(`[room] create q=${this.questionMs}ms r=${this.revealMs}ms pot=${this.potAmount} chain=${this.chain.mode}`);
     this.setState(new GameState());
+
+    // Commit-reveal: hash the full question set (answers included) + a salt, escrow the pot, and
+    // post the commitment BEFORE anyone plays — the host provably can't swap questions afterwards.
+    // (Reveal bytes ride in the settle tx, so keep question sets small; hash-of-hashes later.)
+    this.revealBytes = Buffer.from(JSON.stringify({ questions: this.questions, salt: this.roomId }));
+    const commitment = keccak_256(this.revealBytes);
+    this.chainInit = this.chain
+      .initGame({
+        gameId: this.roomId,
+        numQuestions: this.questions.length,
+        questionCommitment: commitment,
+        prizeSplit: this.prizeSplit,
+        potAmount: this.potAmount,
+      })
+      .then((r) => (console.log(`[room] on-chain game ready ${r.gamePubkey}`), r))
+      .catch((e) => {
+        console.error(`[room] chain init failed:`, e?.message ?? e);
+        throw e;
+      });
 
     this.onMessage("host:start", (client) => {
       if (this.state.phase !== "lobby") return;
@@ -185,17 +205,16 @@ export class GameRoom extends Room<GameState> {
     const ranking = this.leaderboard();
     this.broadcast("podium", { leaderboard: ranking });
     try {
+      await this.chainInit; // escrow + commitment must exist before we can settle
       const settlement = await this.chain.settle({
         gameId: this.roomId,
         ranking,
-        potAmount: this.potAmount,
-        potMint: this.potMint,
         prizeSplit: this.prizeSplit,
-        reveal: null,
+        reveal: this.revealBytes,
       });
       this.broadcast("settled", { settlement });
-    } catch (e) {
-      this.broadcast("error", { code: "settle_failed", message: String(e) });
+    } catch (e: any) {
+      this.broadcast("error", { code: "settle_failed", message: String(e?.message ?? e) });
     }
     this.state.phase = "complete";
   }

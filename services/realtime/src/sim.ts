@@ -8,10 +8,12 @@
  * times, and we log join → questions → reveals → podium → settlement. Proves the loop end-to-end.
  */
 import { Client, type Room } from "colyseus.js";
+import { Keypair } from "@solana/web3.js";
 
 const ENDPOINT = process.env.REALTIME_URL ?? "ws://localhost:2567";
 const NUM_PLAYERS = 4;
 const NAMES = ["ada", "bola", "chidi", "deji", "ephraim", "funke"];
+const TIMEOUT_MS = Number(process.env.SIM_TIMEOUT_MS ?? 150_000); // devnet settle takes a while
 
 function log(tag: string, msg: string) {
   console.log(`  ${tag.padEnd(8)} ${msg}`);
@@ -45,6 +47,8 @@ async function main() {
     host.onMessage("settled", (m: any) => {
       log("settled", `tx=${m.settlement.txSig}`);
       for (const w of m.settlement.winners) log("payout", `#${w.rank}  ${w.wallet}  +${w.amount}`);
+      if (m.settlement.txSig !== "stub-signature")
+        log("explorer", `https://explorer.solana.com/tx/${m.settlement.txSig}?cluster=devnet`);
       resolve();
     });
     host.onMessage("error", (m: any) => {
@@ -56,7 +60,8 @@ async function main() {
   const players: Room[] = [];
   for (let i = 0; i < NUM_PLAYERS; i++) {
     const name = NAMES[i];
-    const room = await client.joinById(host.roomId, { name, wallet: `W_${name}` });
+    const wallet = Keypair.generate().publicKey.toBase58(); // real pubkey → payouts can land
+    const room = await client.joinById(host.roomId, { name, wallet });
     const reactionMs = 120 + i * 260; // different reaction times → different speed scores
     room.onMessage("question", (m: any) => {
       const choice = Math.floor(Math.random() * m.question.options.length); // questions are secret → guess
@@ -72,7 +77,7 @@ async function main() {
   console.log();
   host.send("host:start");
 
-  const timeout = new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 30_000));
+  const timeout = new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS));
   try {
     await Promise.race([done, timeout]);
     console.log("\n✅  slice complete — join → play → score → settle\n");

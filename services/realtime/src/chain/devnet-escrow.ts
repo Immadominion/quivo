@@ -22,9 +22,10 @@ import {
   mintTo,
 } from "@solana/spl-token";
 import { keccak_256 } from "@noble/hashes/sha3";
+import type { Quivo } from "../onchain/quivo";
 
 const RPC = process.env.SOLANA_RPC ?? "https://rpc.magicblock.app/devnet";
-const idl = JSON.parse(readFileSync(new URL("../onchain/quivo.json", import.meta.url), "utf8"));
+const idl = JSON.parse(readFileSync(new URL("../onchain/quivo.json", import.meta.url), "utf8")) as Quivo;
 
 function loadKeypair(): Keypair {
   const path = process.env.QUIVO_KEYPAIR;
@@ -59,7 +60,7 @@ async function main() {
   const connection = new Connection(RPC, { commitment: "confirmed", confirmTransactionInitialTimeout: 90_000 });
   const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(payer), { commitment: "confirmed" });
   anchor.setProvider(provider);
-  const program = new anchor.Program(idl, provider);
+  const program = new anchor.Program<Quivo>(idl, provider);
   const programId = program.programId;
 
   console.log(`\n🏦  Quivo Tier-1 proof → devnet`);
@@ -85,7 +86,7 @@ async function main() {
   await retry("initializeGame", () =>
     program.methods
       .initializeGame(seed, 3, [60, 30, 10])
-      .accounts({
+      .accountsPartial({
         host: payer.publicKey,
         game,
         potMint: mint,
@@ -106,7 +107,7 @@ async function main() {
   await retry("fundPot", () =>
     program.methods
       .fundPot(new BN(5_000_000))
-      .accounts({ funder: payer.publicKey, funderAta: hostAta.address, potVault, game, tokenProgram: TOKEN_PROGRAM_ID })
+      .accountsPartial({ funder: payer.publicKey, funderAta: hostAta.address, potVault, game, tokenProgram: TOKEN_PROGRAM_ID })
       .rpc(),
   );
   ok("escrow holds 5 USDC", (await retry("vaultBal", () => getAccount(connection, potVault))).amount === 5_000_000n);
@@ -115,7 +116,7 @@ async function main() {
   console.log("· commitQuestions…");
   const reveal = Buffer.from(JSON.stringify({ q: ["a", "b", "c"], salt: "quivo-demo" }));
   const commitment = Array.from(keccak_256(reveal));
-  await retry("commitQuestions", () => program.methods.commitQuestions(commitment).accounts({ host: payer.publicKey, game }).rpc());
+  await retry("commitQuestions", () => program.methods.commitQuestions(commitment).accountsPartial({ host: payer.publicKey, game }).rpc());
   const g2: any = await retry("fetch game 2", () => program.account.game.fetch(game));
   ok("commitment stored", Buffer.from(g2.questionCommitment).equals(Buffer.from(commitment)));
 
@@ -133,7 +134,7 @@ async function main() {
   await retry("settle", () =>
     program.methods
       .settle(reveal)
-      .accounts({ payer: payer.publicKey, game, vaultAuthority, potVault, tokenProgram: TOKEN_PROGRAM_ID })
+      .accountsPartial({ payer: payer.publicKey, game, vaultAuthority, potVault, tokenProgram: TOKEN_PROGRAM_ID })
       .remainingAccounts(winnerAtas.map((pubkey) => ({ pubkey, isWritable: true, isSigner: false })))
       .rpc(),
   );
