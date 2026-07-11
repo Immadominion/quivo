@@ -4,21 +4,20 @@
 //! Colyseus server. This program owns only what must be trustless:
 //!   * the prize pot, held in a program-owned escrow (the host cannot withdraw it),
 //!   * a commitment to the question set (so questions can't be swapped after money is staked),
-//!   * the live game account, delegated to a MagicBlock Ephemeral Rollup during play,
-//!   * settlement: pay the podium from escrow and commit state back to base layer — one Magic Action.
+//!   * settlement: verify the reveal and pay the podium from escrow (base layer).
 //!
-//! ER integration (`#[ephemeral]` / `#[delegate]` / `#[commit]` + `commit_and_undelegate`) mirrors the
-//! proven pattern from the throtl engine. This is the scoped Tier-1 spine (escrow + commit-reveal +
-//! settlement); `submit_answer` is the Tier-2 on-ER answer-anchoring path, included and marked.
+//! Tier-1 (shipped): escrow + question commit-reveal + base-layer settle payout — the game is NOT
+//! delegated, so settle needs no ER. Tier-2 (delegate the game + `submit_answer` on the ER, then a
+//! commit + Magic-Action payout) is the live-answer-anchoring path that makes the ER load-bearing;
+//! `delegate_game`/`submit_answer` are wired for it. `#[ephemeral]` stays for both.
 //!
 //! Placeholder program id — run `anchor keys sync` after the first `anchor build`.
 use anchor_lang::prelude::*;
 use solana_keccak_hasher as keccak;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use ephemeral_rollups_sdk::anchor::{commit, delegate, ephemeral};
+use ephemeral_rollups_sdk::anchor::{delegate, ephemeral};
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
-use ephemeral_rollups_sdk::ephem::MagicIntentBundleBuilder;
 
 declare_id!("BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG");
 
@@ -151,17 +150,17 @@ pub mod quivo {
         Ok(())
     }
 
-    /// Settle: verify the question reveal against the commitment, pay the podium from escrow, and
-    /// commit + undelegate the game account back to base layer — one Magic Action.
-    ///
-    /// Winners' token accounts are passed as `remaining_accounts` in podium order (1st..=Nth); the
-    /// off-chain worker computes the ranking (Tier-1) or it is derived from on-chain answers (Tier-2).
+    /// Settle (Tier-1, base layer): verify the question reveal against the commitment, then pay the
+    /// podium from escrow. Winners' token accounts are passed as `remaining_accounts` in podium order
+    /// (1st..=Nth); the off-chain server computes the ranking. No ER — the game is never delegated in
+    /// Tier-1, so the transfers happen directly on base layer.
     pub fn settle<'info>(
         ctx: Context<'info, Settle<'info>>,
         reveal: Vec<u8>,
     ) -> Result<()> {
         let (game_key, vault_bump, prize_split, pot_mint) = {
             let g = &ctx.accounts.game;
+            require!(g.status != status::COMPLETE, QuivoError::WrongPhase);
             // Fairness: the revealed question set must match the pre-committed hash.
             let h = keccak::hash(&reveal).to_bytes();
             require!(h == g.question_commitment, QuivoError::RevealMismatch);
@@ -171,16 +170,19 @@ pub mod quivo {
         // Pay the podium from escrow. Amounts = split% of the vault balance; remainder → 1st place.
         let pot = ctx.accounts.pot_vault.amount;
         let signer_seeds: &[&[u8]] = &[VAULT_SEED, game_key.as_ref(), &[vault_bump]];
-        let mut distributed: u64 = 0;
         for (i, winner_ata) in ctx.remaining_accounts.iter().enumerate().take(prize_split.len()) {
-            let mut amount = pot.saturating_mul(prize_split[i] as u64) / 100;
-            if i == 0 {
-                // give rounding remainder to first place
+            let amount = if i == 0 {
                 let others: u64 = prize_split.iter().skip(1).map(|p| pot.saturating_mul(*p as u64) / 100).sum();
-                amount = pot.saturating_sub(others);
+                pot.saturating_sub(others) // rounding remainder → first place
+            } else {
+                pot.saturating_mul(prize_split[i] as u64) / 100
+            };
+            // Guard: the winner account must be an SPL token account for THIS pot's mint.
+            {
+                let data = winner_ata.try_borrow_data()?;
+                let ta = TokenAccount::try_deserialize(&mut &data[..])?;
+                require_keys_eq!(ta.mint, pot_mint, QuivoError::WrongMint);
             }
-            // TODO(hardening): assert winner_ata.mint == pot_mint before transferring.
-            let _ = pot_mint;
             token::transfer(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.key(),
@@ -193,19 +195,9 @@ pub mod quivo {
                 ),
                 amount,
             )?;
-            distributed = distributed.saturating_add(amount);
         }
 
         ctx.accounts.game.status = status::COMPLETE;
-
-        // Commit final ER state to L1 and undelegate (mirrors throtl request_settle).
-        MagicIntentBundleBuilder::new(
-            ctx.accounts.payer.to_account_info(),
-            ctx.accounts.magic_context.to_account_info(),
-            ctx.accounts.magic_program.to_account_info(),
-        )
-        .commit_and_undelegate(&[ctx.accounts.game.to_account_info()])
-        .build_and_invoke()?;
         Ok(())
     }
 }
@@ -327,8 +319,6 @@ pub struct SubmitAnswer<'info> {
     pub player: Account<'info, Player>,
 }
 
-/// `#[commit]` injects `magic_context` and `magic_program`.
-#[commit]
 #[derive(Accounts)]
 pub struct Settle<'info> {
     #[account(mut, address = game.host)]
@@ -360,4 +350,6 @@ pub enum QuivoError {
     AlreadyAnswered,
     #[msg("revealed questions do not match the commitment")]
     RevealMismatch,
+    #[msg("winner token account is not for the pot mint")]
+    WrongMint,
 }

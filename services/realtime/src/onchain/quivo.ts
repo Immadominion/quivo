@@ -627,11 +627,10 @@ export type Quivo = {
     {
       "name": "settle",
       "docs": [
-        "Settle: verify the question reveal against the commitment, pay the podium from escrow, and",
-        "commit + undelegate the game account back to base layer — one Magic Action.",
-        "",
-        "Winners' token accounts are passed as `remaining_accounts` in podium order (1st..=Nth); the",
-        "off-chain worker computes the ranking (Tier-1) or it is derived from on-chain answers (Tier-2)."
+        "Settle (Tier-1, base layer): verify the question reveal against the commitment, then pay the",
+        "podium from escrow. Winners' token accounts are passed as `remaining_accounts` in podium order",
+        "(1st..=Nth); the off-chain server computes the ranking. No ER — the game is never delegated in",
+        "Tier-1, so the transfers happen directly on base layer."
       ],
       "discriminator": [
         175,
@@ -681,15 +680,6 @@ export type Quivo = {
         {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "magicProgram",
-          "address": "Magic11111111111111111111111111111111111111"
-        },
-        {
-          "name": "magicContext",
-          "writable": true,
-          "address": "MagicContext1111111111111111111111111111111"
         }
       ],
       "args": [
@@ -808,6 +798,11 @@ export type Quivo = {
       "code": 6005,
       "name": "revealMismatch",
       "msg": "revealed questions do not match the commitment"
+    },
+    {
+      "code": 6006,
+      "name": "wrongMint",
+      "msg": "winner token account is not for the pot mint"
     }
   ],
   "types": [
