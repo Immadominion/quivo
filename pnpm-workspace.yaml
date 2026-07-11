@@ -1,0 +1,6 @@
+# Only JS/TS packages belong to the pnpm workspace.
+# `onchain` (Rust/Cargo) and `apps/mobile` (Flutter/pub) manage their own dependencies.
+packages:
+  - "apps/stage"
+  - "services/*"
+  - "packages/*"

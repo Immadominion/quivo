@@ -1,0 +1,27 @@
+[package]
+name = "quivo"
+version = "0.1.0"
+description = "Quivo — live game-show settlement + fairness (Solana + MagicBlock Ephemeral Rollups)."
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "quivo"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+# Proven pins inherited from the throtl engine (known to compile against this toolchain).
+anchor-lang = { version = "1.0.2", features = ["init-if-needed"] }
+anchor-spl = "1.0.2"
+# MagicBlock ER — "anchor" feature => anchor-modern => anchor-lang ^1.0. Never "anchor-compat".
+ephemeral-rollups-sdk = { version = "0.15.4", features = ["anchor"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

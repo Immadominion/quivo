@@ -1,0 +1,36 @@
+name: quivo
+description: "Quivo — the player app. Scan a QR, join a live game show, answer, get paid on-chain."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- realtime transport ---
+  # DECISION PENDING (see README): Colyseus's client protocol isn't plain JSON. Either use a
+  # Colyseus-compatible Dart client, or have services/realtime expose a thin JSON-over-WS gateway
+  # for players (web_socket_channel then works directly). We lean gateway for a rock-solid mobile path.
+  web_socket_channel: ^3.0.1
+
+  # --- onboarding & input ---
+  mobile_scanner: ^6.0.2 # scan the join QR
+  flutter_secure_storage: ^9.2.2 # hold the ephemeral keypair
+
+  # --- Solana ---
+  solana: ^0.31.0 # keypair, tx, SPL, session-key signing
+
+  # --- state / ui ---
+  flutter_riverpod: ^2.6.1
+  http: ^1.2.2
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

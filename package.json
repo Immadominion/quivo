@@ -1,0 +1,21 @@
+{
+  "name": "quivo",
+  "private": true,
+  "version": "0.0.1",
+  "description": "A live game show for crypto events — real-time play, on-chain instant payouts (Solana + MagicBlock).",
+  "packageManager": "pnpm@10.33.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.7.3"
+  }
+}

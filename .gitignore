@@ -1,0 +1,34 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+.turbo/
+out/
+
+# rust / anchor
+onchain/target/
+onchain/.anchor/
+test-ledger/
+**/*.rs.bk
+
+# flutter
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins*
+apps/mobile/ios/Pods/
+
+# env & secrets — never commit
+.env
+.env.*
+!.env.example
+*-keypair.json
+**/keypairs/*.json
+.keys/
+
+# misc
+*.log
+.DS_Store
+coverage/
