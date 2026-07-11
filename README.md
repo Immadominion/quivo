@@ -11,6 +11,8 @@ Solana + MagicBlock's real-time Ephemeral Rollups.
 > Built for **Solana Blitz v6** (MagicBlock · Solana Mobile). See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 > for the full system design — the on-chain/off-chain seam is the whole game.
 
+**Live on devnet:** program [`BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG`](https://explorer.solana.com/address/BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG?cluster=devnet) — escrow · question commit-reveal · ER delegate/commit settle.
+
 ## Monorepo layout
 
 ```
