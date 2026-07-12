@@ -110,7 +110,11 @@ export class GameRoom extends Room<GameState> {
         prizeSplit: this.prizeSplit,
         potAmount: this.potAmount,
       })
-      .then((r) => (console.log(`[room] on-chain game ready ${r.gamePubkey}`), r))
+      .then((r) => {
+        console.log(`[room] on-chain game ready ${r.gamePubkey}`);
+        this.broadcast("chainReady", { gamePubkey: r.gamePubkey });
+        return r;
+      })
       .catch((e) => {
         console.error(`[room] chain init failed:`, e?.message ?? e);
         throw e;
