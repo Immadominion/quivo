@@ -19,6 +19,9 @@ apps/mobile/.dart_tool/
 apps/mobile/build/
 apps/mobile/.flutter-plugins*
 apps/mobile/ios/Pods/
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/.gradle/
 
 # env & secrets — never commit
 .env

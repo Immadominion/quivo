@@ -1,14 +1,14 @@
 "use client";
 /**
- * Player — the phone view. Candy Arcade (docs/DESIGN.md): thumb-first four-color answer tiles,
+ * Player, the phone view. Floodlight (docs/DESIGN.md): thumb-first four-color answer tiles,
  * instant optimistic "locked in", reveal feedback, and the payout money-moment with haptics + sound.
- * Ephemeral Solana wallet minted silently on first open — no signup, no wallet app.
+ * Ephemeral Solana wallet minted silently on first open. No signup, no wallet app.
  */
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, type Room } from "colyseus.js";
 import { Keypair } from "@solana/web3.js";
-import { T, ANSWERS, playerHue, springy } from "../theme";
+import { T, ANSWERS, playerHue, springy, squircle } from "../theme";
 import { unlock, sfx, buzz } from "../sound";
 
 type LB = { sessionId: string; name: string; wallet: string; score: number; rank: number; delta: number };
@@ -119,21 +119,21 @@ export default function Play() {
 
   return (
     <main style={{ minHeight: "100dvh", maxWidth: 520, margin: "0 auto", padding: "22px 18px", display: "flex", flexDirection: "column" }}>
-      <div style={{ textAlign: "center", fontWeight: 900, fontSize: 22, color: T.ink, marginBottom: 8 }}>QUIVO</div>
+      <div style={{ textAlign: "center", fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 22, color: T.ink, marginBottom: 8 }}>QUIVO</div>
 
       <AnimatePresence mode="wait">
         {phase === "join" && (
           <motion.div key="join" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ marginTop: "8vh" }}>
             <div style={cardBox}>
-              <div style={{ fontWeight: 900, fontSize: 20, color: T.ink, textAlign: "center", marginBottom: 16 }}>Join the game</div>
-              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="game code" style={input} />
+              <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 20, color: T.ink, textAlign: "center", marginBottom: 16 }}>Join the game</div>
+              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="game code" style={{ ...input, fontFamily: "var(--font-mono)" }} />
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="your name" style={{ ...input, marginTop: 10 }} />
-              <BigButton onClick={join} disabled={!code || connecting} grad={T.primaryGrad} rgb="47,125,246" style={{ marginTop: 14 }}>
+              <BigButton onClick={join} disabled={!code || connecting} grad={T.primaryGrad} rgb="124,58,237" style={{ marginTop: 14 }}>
                 {connecting ? "Joining…" : "Join game"}
               </BigButton>
               <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, justifyContent: "center", color: T.muted, fontWeight: 700, fontSize: 12 }}>
-                <div style={{ width: 22, height: 22, borderRadius: "50%", background: wallet ? playerHue(wallet) : "#ccc" }} />
-                wallet {wallet ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : "…"} · made on this phone
+                <div style={{ width: 22, height: 22, borderRadius: "50%", background: wallet ? playerHue(wallet) : T.muted }} />
+                wallet <span style={{ fontFamily: "var(--font-mono)" }}>{wallet ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : "…"}</span> · made on this phone
               </div>
             </div>
           </motion.div>
@@ -142,18 +142,18 @@ export default function Play() {
         {phase === "lobby" && (
           <motion.div key="lobby" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} style={{ margin: "auto", textAlign: "center" }}>
             <motion.div animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 1.6, repeat: Infinity }} style={{ fontSize: 56 }}>✅</motion.div>
-            <div style={{ fontWeight: 900, fontSize: 22, color: T.ink, marginTop: 8 }}>You're in!</div>
-            <div style={{ color: T.muted, fontWeight: 700, marginTop: 4 }}>Eyes on the big screen — starting soon.</div>
+            <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 22, color: T.ink, marginTop: 8 }}>You're in!</div>
+            <div style={{ color: T.muted, fontWeight: 700, marginTop: 4 }}>Eyes on the big screen, starting soon.</div>
           </motion.div>
         )}
 
         {(phase === "question" || phase === "reveal") && question && (
           <motion.div key="q" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: "flex", flexDirection: "column", flex: 1 }}>
             <div style={{ textAlign: "center", padding: "6px 4px 12px" }}>
-              <div style={{ fontWeight: 700, color: T.muted, fontSize: 13 }}>Question {question.index + 1}</div>
+              <div style={{ fontWeight: 700, color: T.muted, fontSize: 12, letterSpacing: 0.8, textTransform: "uppercase" }}>Question {question.index + 1}</div>
               <div style={{ fontWeight: 800, color: T.body, fontSize: 16, marginTop: 4, textWrap: "balance" } as any}>{question.prompt}</div>
               {phase === "question" && choice === null && (
-                <div style={{ fontWeight: 900, fontSize: 34, color: secondsLeft <= 3 ? "#e5484d" : T.ink, marginTop: 6, fontVariantNumeric: "tabular-nums" }}>{secondsLeft}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontWeight: 900, fontSize: 34, color: secondsLeft <= 3 ? T.danger : T.ink, marginTop: 6, fontVariantNumeric: "tabular-nums" }}>{secondsLeft}</div>
               )}
             </div>
 
@@ -173,7 +173,7 @@ export default function Play() {
                     transition={springy}
                     style={{
                       border: "none",
-                      borderRadius: 20,
+                      ...squircle(20),
                       background: a.grad,
                       color: "#fff",
                       fontFamily: "inherit",
@@ -197,7 +197,7 @@ export default function Play() {
             <div style={{ textAlign: "center", minHeight: 40, marginTop: 12 }}>
               {choice !== null && correct === null && <span style={{ fontWeight: 800, color: T.primaryText }}>locked in ✓</span>}
               {correct !== null && me && (
-                <motion.span initial={{ scale: 0.7 }} animate={{ scale: 1 }} style={{ fontWeight: 900, fontSize: 18, color: choiceRef.current === correct ? T.winLime : "#e5484d" }}>
+                <motion.span initial={{ scale: 0.7 }} animate={{ scale: 1 }} style={{ fontFamily: "var(--font-mono)", fontWeight: 900, fontSize: 18, color: choiceRef.current === correct ? T.winLime : T.danger }}>
                   {choiceRef.current === correct ? `✅ +${me.delta}` : "❌ +0"} · score {me.score} · #{me.rank}
                 </motion.span>
               )}
@@ -208,23 +208,23 @@ export default function Play() {
         {(phase === "settling" || phase === "complete") && (
           <motion.div key="end" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ margin: "auto", textAlign: "center", width: "100%" }}>
             {me && (
-              <div style={{ fontWeight: 900, fontSize: 24, color: T.ink }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontWeight: 900, fontSize: 24, color: T.ink }}>
                 You finished #{me.rank} · {me.score} pts
               </div>
             )}
-            {!settlement && <div style={{ marginTop: 14, fontWeight: 800, color: "#c58a1e" }}>⏳ settling on-chain…</div>}
+            {!settlement && <div style={{ marginTop: 14, fontWeight: 800, color: T.amber }}>⏳ settling on-chain…</div>}
             <AnimatePresence>
               {settlement && myPayout && (
-                <motion.div key="paid" initial={{ scale: 0.7, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 260, damping: 16 }} style={{ ...cardBox, marginTop: 18, background: "linear-gradient(180deg,#f0fbf2,#dff5e6)" }}>
+                <motion.div key="paid" initial={{ scale: 0.7, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 260, damping: 16 }} style={{ ...cardBox, marginTop: 18, background: T.cardWash }}>
                   <motion.div initial={{ y: -30, rotate: -20 }} animate={{ y: 0, rotate: 0 }} transition={{ type: "spring", stiffness: 300, damping: 12 }} style={{ display: "flex", justifyContent: "center" }}>
                     <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.coin, boxShadow: T.coinShadow, display: "grid", placeItems: "center" }}>
                       <div style={{ width: 26, height: 26, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%,#ffe0a8,#f0a835)" }} />
                     </div>
                   </motion.div>
-                  <div style={{ fontWeight: 900, fontSize: 26, color: "#2f9e44", marginTop: 12 }}>You got paid!</div>
+                  <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 26, color: T.winLime, marginTop: 12 }}>You got paid!</div>
                   <CountUp to={Number(myPayout.amount) / 1e6} />
                   {settlement.txSig !== "stub-signature" && (
-                    <a href={`https://explorer.solana.com/tx/${settlement.txSig}?cluster=devnet`} target="_blank" style={{ color: "#2f9e44", fontWeight: 800, display: "inline-block", marginTop: 8 }}>
+                    <a href={`https://explorer.solana.com/tx/${settlement.txSig}?cluster=devnet`} target="_blank" style={{ color: T.winLime, fontWeight: 800, display: "inline-block", marginTop: 8 }}>
                       see it on-chain ↗
                     </a>
                   )}
@@ -232,7 +232,7 @@ export default function Play() {
               )}
               {settlement && !myPayout && (
                 <motion.div key="np" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ marginTop: 16, fontWeight: 800, color: T.muted }}>
-                  No payout this round — run it back 🔁
+                  No payout this round, run it back 🔁
                 </motion.div>
               )}
             </AnimatePresence>
@@ -241,7 +241,7 @@ export default function Play() {
       </AnimatePresence>
 
       {error && (
-        <div style={{ position: "fixed", bottom: 20, left: 18, right: 18, background: "#e5484d", color: "#fff", fontWeight: 800, padding: "12px 16px", borderRadius: 14, textAlign: "center" }}>⚠ {error}</div>
+        <div style={{ position: "fixed", bottom: 20, left: 18, right: 18, background: T.danger, color: "#fff", fontWeight: 800, padding: "12px 16px", ...squircle(14), textAlign: "center" }}>⚠ {error}</div>
       )}
     </main>
   );
@@ -261,7 +261,7 @@ function CountUp({ to }: { to: number }) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [to]);
-  return <div style={{ fontWeight: 900, fontSize: 30, color: T.ink }}>+{v.toFixed(2)} USDC</div>;
+  return <div style={{ fontFamily: "var(--font-mono)", fontWeight: 900, fontSize: 30, color: T.ink }}>+{v.toFixed(2)} USDC</div>;
 }
 
 function BigButton({ children, onClick, disabled, grad, rgb, style }: any) {
@@ -270,7 +270,7 @@ function BigButton({ children, onClick, disabled, grad, rgb, style }: any) {
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       disabled={disabled}
-      style={{ width: "100%", border: "none", borderRadius: 16, padding: 16, fontWeight: 900, fontSize: 18, color: "#fff", background: disabled ? "#b9bccb" : grad, boxShadow: disabled ? "none" : `0 6px 14px rgba(${rgb},.4)`, fontFamily: "inherit", cursor: disabled ? "not-allowed" : "pointer", ...style }}
+      style={{ width: "100%", border: "none", ...squircle(16), padding: 16, fontWeight: 900, fontSize: 18, color: "#fff", background: disabled ? "#b9bccb" : grad, boxShadow: disabled ? "none" : `0 6px 14px rgba(${rgb},.4)`, fontFamily: "inherit", cursor: disabled ? "not-allowed" : "pointer", ...style }}
     >
       {children}
     </motion.button>
@@ -278,10 +278,10 @@ function BigButton({ children, onClick, disabled, grad, rgb, style }: any) {
 }
 
 function joinError(raw: string): string {
-  if (/not found|no room/i.test(raw)) return "That game code wasn't found — check the screen.";
-  if (/fetch|network|socket|timeout/i.test(raw)) return "Couldn't reach the game — retrying helps on venue wifi.";
+  if (/not found|no room/i.test(raw)) return "That game code wasn't found, check the screen.";
+  if (/fetch|network|socket|timeout/i.test(raw)) return "Couldn't reach the game, retrying helps on venue wifi.";
   return raw;
 }
 
-const cardBox: React.CSSProperties = { background: "#fff", borderRadius: 24, padding: 22, boxShadow: T.shadowFloat };
-const input: React.CSSProperties = { width: "100%", boxSizing: "border-box", padding: "14px 16px", fontSize: 18, fontWeight: 800, borderRadius: 14, border: "2px solid #d3e1fb", background: "#f7faff", color: T.ink, textAlign: "center", fontFamily: "inherit" };
+const cardBox: React.CSSProperties = { background: T.card, ...squircle(T.rCard), padding: 22, boxShadow: T.shadowFloat };
+const input: React.CSSProperties = { width: "100%", boxSizing: "border-box", padding: "14px 16px", fontSize: 18, fontWeight: 800, ...squircle(14), border: "2px solid #ece7f7", background: T.cardTint, color: T.ink, textAlign: "center", fontFamily: "inherit" };

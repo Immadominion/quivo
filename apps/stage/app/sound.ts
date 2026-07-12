@@ -1,10 +1,10 @@
 "use client";
 /**
- * Quivo sound engine — 100% procedural Web Audio (no asset files, no licensing, works offline
+ * Quivo sound engine, 100% procedural Web Audio (no asset files, no licensing, works offline
  * at a venue). Game-show SFX synthesized on the fly; volume kept polite.
  *
- * Mobile/desktop autoplay policy: the AudioContext starts suspended until a user gesture —
- * call `unlock()` from the first tap (host: create/start; player: join). Every play() call
+ * Mobile/desktop autoplay policy: the AudioContext starts suspended until a user gesture.
+ * Call `unlock()` from the first tap (host: create/start; player: join). Every play() call
  * also retries resume, so a missed unlock self-heals on the next interaction-triggered sound.
  */
 
@@ -80,12 +80,12 @@ function noise({ time = 0, dur = 0.2, vol = 0.12, from = 400, to = 4000 }) {
 }
 
 export const sfx = {
-  /** a player joined the lobby — bubbly pop */
+  /** a player joined the lobby, bubbly pop */
   join() {
     tone({ freq: 620, dur: 0.09, type: "sine", vol: 0.16 });
     tone({ freq: 930, time: 0.06, dur: 0.12, type: "sine", vol: 0.14 });
   },
-  /** question appears — attention swoosh + chime */
+  /** question appears, attention swoosh + chime */
   question() {
     noise({ dur: 0.25, vol: 0.08, from: 300, to: 3500 });
     tone({ freq: 523, time: 0.1, dur: 0.18, type: "triangle", vol: 0.16 });
@@ -100,11 +100,11 @@ export const sfx = {
     tone({ freq: 340, dur: 0.06, type: "square", vol: 0.14 });
     tone({ freq: 220, time: 0.05, dur: 0.08, type: "square", vol: 0.1 });
   },
-  /** reveal — correct: bright major arpeggio */
+  /** reveal, correct: bright major arpeggio */
   correct() {
     [523, 659, 784, 1047].forEach((f, i) => tone({ freq: f, time: i * 0.07, dur: 0.22, type: "triangle", vol: 0.16 }));
   },
-  /** reveal — wrong: soft descending thud */
+  /** reveal, wrong: soft descending thud */
   wrong() {
     tone({ freq: 220, dur: 0.25, type: "sawtooth", vol: 0.1, slide: 110 });
   },
@@ -118,7 +118,7 @@ export const sfx = {
     seq.forEach((f, i) => tone({ freq: f, time: i * 0.11, dur: 0.28, type: "triangle", vol: 0.18 }));
     noise({ time: 0.7, dur: 0.5, vol: 0.05, from: 1500, to: 6000 });
   },
-  /** money hit — coin cascade (the payout moment) */
+  /** money hit, coin cascade (the payout moment) */
   coin() {
     [1319, 1568, 2093].forEach((f, i) => tone({ freq: f, time: i * 0.08, dur: 0.3, type: "sine", vol: 0.16 }));
     tone({ freq: 2637, time: 0.26, dur: 0.4, type: "sine", vol: 0.12 });

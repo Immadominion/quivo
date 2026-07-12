@@ -1,11 +1,33 @@
 import 'package:go_router/go_router.dart';
+import 'screens/splash_gate.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/join_screen.dart';
+import 'screens/play_screen.dart';
+import 'screens/preview_screen.dart';
+import 'screens/shell/app_shell.dart';
+import 'screens/tabs/wallet_screen.dart';
+import 'screens/tabs/history_screen.dart';
+import 'screens/tabs/profile_screen.dart';
 
-/// App router. Screens are added per iteration (onboarding, join, play, results, wallet, …);
-/// a ShellRoute bottom-nav shell (Home/Wallet/History/Profile) lands in It5.
+/// App router. The four primary tabs live behind a StatefulShellRoute (bottom-nav shell); the live
+/// session (/play), join, onboarding, splash and the debug preview are full-screen routes above it.
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (c, s) => const HomeScreen()),
+    GoRoute(path: '/', builder: (c, s) => const SplashGate()),
+    GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
+    GoRoute(path: '/join', builder: (c, s) => const JoinScreen()),
+    GoRoute(path: '/play', builder: (c, s) => const PlayScreen()),
+    GoRoute(path: '/preview', builder: (c, s) => const PreviewScreen()),
+    StatefulShellRoute.indexedStack(
+      builder: (c, s, shell) => AppShell(navigationShell: shell),
+      branches: [
+        StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (c, s) => const HomeScreen())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/wallet', builder: (c, s) => const WalletScreen())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/history', builder: (c, s) => const HistoryScreen())]),
+        StatefulShellBranch(routes: [GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen())]),
+      ],
+    ),
   ],
 );

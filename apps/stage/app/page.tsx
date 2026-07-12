@@ -1,6 +1,6 @@
 "use client";
 /**
- * Stage — the host / big-screen (projector) view. Candy Arcade design (docs/DESIGN.md), full
+ * Stage, the host / big-screen (projector) view. Floodlight design (docs/DESIGN.md), full
  * choreography via framer-motion, procedural sound, and the live "anchored on-chain" ticker that
  * makes the MagicBlock moment visible. See docs/ROADMAP.md §1.
  */
@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Client, type Room } from "colyseus.js";
 import { QRCodeSVG } from "qrcode.react";
-import { T, ANSWERS, playerHue, springy } from "./theme";
+import { T, ANSWERS, playerHue, springy, glowBlob, squircle } from "./theme";
 import { unlock, sfx } from "./sound";
 
 type LB = { sessionId: string; name: string; wallet: string; score: number; rank: number; delta: number };
@@ -42,7 +42,7 @@ export default function Stage() {
     return () => clearInterval(t);
   }, []);
 
-  // countdown ticks (last 5s) — audible tension
+  // countdown ticks (last 5s) - audible tension
   const secondsLeft = Math.max(0, Math.ceil((endsAt - now) / 1000));
   const lastTick = useRef(-1);
   useEffect(() => {
@@ -160,8 +160,8 @@ export default function Stage() {
 function Header() {
   return (
     <div style={{ textAlign: "center", marginBottom: 8 }}>
-      <span style={{ fontWeight: 900, fontSize: "clamp(26px,3vw,40px)", color: T.ink, letterSpacing: -0.5 }}>QUIVO</span>
-      <span style={{ fontWeight: 800, fontSize: 14, color: "#6b6a86", marginLeft: 12 }}>
+      <span style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: "clamp(26px,3vw,40px)", color: T.ink, letterSpacing: -0.5 }}>QUIVO</span>
+      <span style={{ fontWeight: 800, fontSize: 14, color: T.muted, marginLeft: 12 }}>
         live game show · real prizes · devnet
       </span>
     </div>
@@ -177,7 +177,7 @@ function Idle({ busy, pot, setPot, onCreate }: { busy: boolean; pot: string; set
       style={{ maxWidth: 620, margin: "10vh auto 0", textAlign: "center" }}
     >
       <Card style={{ padding: 40 }}>
-        <div style={{ fontSize: 26, fontWeight: 900, color: T.ink }}>Host a live game show</div>
+        <div style={{ fontFamily: "'Clash Display', sans-serif", fontSize: 26, fontWeight: 900, color: T.ink }}>Host a live game show</div>
         <p style={{ color: T.muted, fontWeight: 700, fontSize: 16, margin: "10px 0 26px" }}>
           The room joins on their phones. Answer fast. Winners are paid on-chain, instantly.
         </p>
@@ -187,7 +187,7 @@ function Idle({ busy, pot, setPot, onCreate }: { busy: boolean; pot: string; set
           <input
             value={pot}
             onChange={(e) => setPot(e.target.value.replace(/[^0-9.]/g, ""))}
-            style={{ width: 70, textAlign: "center", fontWeight: 900, fontSize: 20, color: T.ink, border: `2px solid #d3e1fb`, borderRadius: 14, padding: "8px 6px", background: "#fff" }}
+            style={{ width: 70, textAlign: "center", fontFamily: "var(--font-mono)", fontWeight: 900, fontSize: 20, color: T.ink, border: `2px solid ${T.primary}33`, ...squircle(14), padding: "8px 6px", background: "#fff" }}
           />
           <span style={{ fontWeight: 800, color: T.muted }}>test-USDC</span>
         </div>
@@ -204,24 +204,30 @@ function Lobby({ joinUrl, code, players, chainReady, pot, onStart }: any) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ maxWidth: 1100, margin: "2vh auto 0" }}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 28, alignItems: "start" }}>
         <Card style={{ padding: 28, textAlign: "center" }}>
-          <div style={{ fontWeight: 900, fontSize: 22, color: T.ink, marginBottom: 14 }}>Scan to join</div>
-          <div style={{ background: "#fff", padding: 14, borderRadius: 20, display: "inline-block", boxShadow: T.shadowCard }}>
+          <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 22, color: T.ink, marginBottom: 14 }}>Scan to join</div>
+          <div style={{ background: "#fff", padding: 14, ...squircle(20), display: "inline-block", boxShadow: T.shadowCard }}>
             {joinUrl && <QRCodeSVG value={joinUrl} size={230} bgColor="#ffffff" fgColor={T.ink} />}
           </div>
           <div style={{ marginTop: 16, fontWeight: 800, color: T.muted, fontSize: 13 }}>or enter code</div>
-          <div style={{ fontWeight: 900, fontSize: 40, letterSpacing: 4, color: T.primaryText }}>{code}</div>
-          <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 13, color: chainReady ? T.winLime : "#c58a1e" }}>
-            <span style={{ width: 9, height: 9, borderRadius: 9, background: chainReady ? T.winLime : "#e8b04a", boxShadow: `0 0 0 4px ${chainReady ? "rgba(130,177,29,.18)" : "rgba(232,176,74,.2)"}` }} />
-            {chainReady ? `${pot} USDC escrowed on-chain` : "escrowing prize pool…"}
+          <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 40, letterSpacing: 4, color: T.primaryText }}>{code}</div>
+          <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 13, color: chainReady ? T.winLime : T.amber }}>
+            <span style={{ width: 9, height: 9, borderRadius: 9, background: chainReady ? T.winLime : T.amber, boxShadow: `0 0 0 4px ${chainReady ? "rgba(74,222,128,.18)" : "rgba(245,158,11,.2)"}` }} />
+            {chainReady ? (
+              <>
+                <span style={{ fontFamily: "var(--font-mono)" }}>{pot}</span> USDC escrowed on-chain
+              </>
+            ) : (
+              "escrowing prize pool…"
+            )}
           </div>
         </Card>
 
         <div>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ fontWeight: 900, fontSize: 26, color: T.ink }}>
-              {players.length} player{players.length === 1 ? "" : "s"} in
+            <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 26, color: T.ink }}>
+              <span style={{ fontFamily: "var(--font-mono)" }}>{players.length}</span> player{players.length === 1 ? "" : "s"} in
             </div>
-            <PillButton onClick={onStart} disabled={players.length === 0} color="130,177,29">
+            <PillButton onClick={onStart} disabled={players.length === 0} color="74,222,128">
               ▶ Start
             </PillButton>
           </div>
@@ -241,7 +247,7 @@ function Lobby({ joinUrl, code, players, chainReady, pot, onStart }: any) {
               ))}
             </AnimatePresence>
             {players.length === 0 && (
-              <div style={{ color: "#7b7a93", fontWeight: 800, fontSize: 16, padding: "36px 4px" }}>waiting for players to scan…</div>
+              <div style={{ color: T.muted, fontWeight: 800, fontSize: 16, padding: "36px 4px" }}>waiting for players to scan…</div>
             )}
           </div>
         </div>
@@ -254,15 +260,23 @@ function QuestionView({ q, phase, secondsLeft, frac, correct, answered, players,
   return (
     <motion.div key={q.index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} style={{ maxWidth: 1200, margin: "1vh auto 0" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontWeight: 800, color: "#5b5a78", fontSize: 18 }}>Question {q.index + 1}</span>
+        <span style={{ fontWeight: 800, color: T.muted, fontSize: 18 }}>
+          Question <span style={{ fontFamily: "var(--font-mono)" }}>{q.index + 1}</span>
+        </span>
         <span style={{ fontWeight: 800, color: T.primaryText, fontSize: 18 }}>
-          {phase === "question" ? `${answered}/${players} answered` : "answers locked"}
+          {phase === "question" ? (
+            <>
+              <span style={{ fontFamily: "var(--font-mono)" }}>{answered}/{players}</span> answered
+            </>
+          ) : (
+            "answers locked"
+          )}
         </span>
       </div>
 
       <Card style={{ padding: "clamp(24px,3vw,44px)", position: "relative", overflow: "visible" }}>
         <Ring frac={frac} seconds={secondsLeft} hidden={phase !== "question"} />
-        <div style={{ fontWeight: 900, color: T.ink, fontSize: "clamp(28px,4vw,56px)", lineHeight: 1.12, textAlign: "center", textWrap: "balance", padding: "10px 40px 6px" } as any}>
+        <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, color: T.ink, fontSize: "clamp(28px,4vw,56px)", lineHeight: 1.12, textAlign: "center", textWrap: "balance", padding: "10px 40px 6px" } as any}>
           {q.prompt}
         </div>
       </Card>
@@ -279,7 +293,7 @@ function QuestionView({ q, phase, secondsLeft, frac, correct, answered, players,
               transition={springy}
               style={{
                 background: a.grad,
-                borderRadius: 22,
+                ...squircle(22),
                 padding: "clamp(18px,2.4vw,30px)",
                 display: "flex",
                 alignItems: "center",
@@ -309,7 +323,7 @@ function MiniBoard({ board }: { board: LB[] }) {
           <span style={{ display: "flex", alignItems: "center", gap: 12, fontWeight: 800, color: T.ink, fontSize: 20 }}>
             <Medal rank={r.rank} /> {r.name}
           </span>
-          <span style={{ fontWeight: 900, color: T.ink, fontSize: 22 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 900, color: T.ink, fontSize: 22 }}>
             <AnimatePresence>
               {r.delta > 0 && (
                 <motion.span key={r.score} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} style={{ color: T.winLime, marginRight: 10, fontSize: 16 }}>
@@ -331,47 +345,75 @@ function Podium({ board, settlement }: { board: LB[]; settlement: Settlement | n
   const heights = [150, 210, 120];
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ maxWidth: 900, margin: "1vh auto 0", textAlign: "center" }}>
-      <div style={{ fontWeight: 900, fontSize: 34, color: T.ink }}>🏆 Podium</div>
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 18, margin: "24px 0 8px", minHeight: 240 }}>
-        {order.map((idx, slot) => {
-          const p = top[idx];
-          if (!p) return <div key={slot} style={{ width: 200 }} />;
-          const rank = idx + 1;
-          return (
-            <motion.div key={p.sessionId} initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: slot * 0.15, ...springy }} style={{ width: 200 }}>
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ width: 66, height: 66, margin: "0 auto 8px", borderRadius: "50%", background: playerHue(p.wallet || p.name), boxShadow: T.shadowCard }} />
-                <div style={{ fontWeight: 900, color: T.ink, fontSize: 20 }}>{p.name}</div>
-                <div style={{ fontWeight: 900, color: T.primaryText, fontSize: 22 }}>{p.score}</div>
-              </div>
-              <div style={{ height: heights[idx], background: idx === 0 ? T.winPurple : "#fff", borderRadius: "18px 18px 0 0", boxShadow: T.shadowCard, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 12 }}>
-                <span style={{ fontWeight: 900, fontSize: 30, color: idx === 0 ? "#fff" : T.muted }}>{rank}</span>
-              </div>
-            </motion.div>
-          );
-        })}
+      <div style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 900, fontSize: 34, color: T.ink }}>🏆 Podium</div>
+
+      {/* dark "Squad Ladder" podium card, one glow blob behind #1, per docs/DESIGN.md */}
+      <div
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          background: T.nightGrad,
+          ...squircle(T.rBig),
+          boxShadow: T.shadowFloat,
+          margin: "24px 0 8px",
+          padding: "34px 24px 0",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: -70,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 360,
+            height: 360,
+            background: glowBlob("#F2951F", 0.35),
+            pointerEvents: "none",
+          }}
+        />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 18, minHeight: 240 }}>
+          {order.map((idx, slot) => {
+            const p = top[idx];
+            if (!p) return <div key={slot} style={{ width: 200 }} />;
+            const rank = idx + 1;
+            const isFirst = idx === 0;
+            return (
+              <motion.div key={p.sessionId} initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: slot * 0.15, ...springy }} style={{ width: 200 }}>
+                <div style={{ marginBottom: 10 }}>
+                  {isFirst && <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 4 }}>👑</div>}
+                  <div style={{ width: 66, height: 66, margin: "0 auto 8px", borderRadius: "50%", background: playerHue(p.wallet || p.name), boxShadow: T.shadowCard }} />
+                  <div style={{ fontWeight: 900, color: "#fff", fontSize: 20 }}>{p.name}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 900, color: "#fff", fontSize: 22 }}>{p.score}</div>
+                </div>
+                <div style={{ height: heights[idx], background: isFirst ? T.coin : "rgba(255,255,255,.08)", ...squircle(18), borderRadius: "18px 18px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 12 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 900, fontSize: 30, color: isFirst ? T.ink : "rgba(255,255,255,.7)" }}>{rank}</span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
         {!settlement ? (
           <motion.div key="paying" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <Card style={{ padding: 22, maxWidth: 480, margin: "16px auto 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", fontWeight: 800, color: "#c58a1e", fontSize: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", fontWeight: 800, color: T.amber, fontSize: 18 }}>
                 <Coin size={26} spin /> Paying winners on-chain…
               </div>
             </Card>
           </motion.div>
         ) : (
           <motion.div key="paid" initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 18 }}>
-            <Card style={{ padding: 26, maxWidth: 520, margin: "16px auto 0", background: "linear-gradient(180deg,#f0fbf2,#e6f7ea)" }}>
-              <div style={{ fontWeight: 900, fontSize: 24, color: "#2f9e44", display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
+            <Card style={{ padding: 26, maxWidth: 520, margin: "16px auto 0", background: `linear-gradient(180deg, ${T.winLime}26 0%, ${T.winLime}14 100%)` }}>
+              <div style={{ fontWeight: 900, fontSize: 24, color: T.winLime, display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
                 <Coin size={28} /> Winners paid on-chain
               </div>
               <div style={{ margin: "14px 0", display: "flex", flexDirection: "column", gap: 8 }}>
                 {settlement.winners.map((w) => (
-                  <div key={w.rank} style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, color: T.ink, fontFamily: "ui-monospace, monospace", fontSize: 15, background: "#fff", borderRadius: 12, padding: "10px 14px" }}>
+                  <div key={w.rank} style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, color: T.ink, fontFamily: "var(--font-mono)", fontSize: 15, background: "#fff", ...squircle(12), padding: "10px 14px" }}>
                     <span><Medal rank={w.rank} /> {w.wallet.slice(0, 4)}…{w.wallet.slice(-4)}</span>
-                    <span style={{ color: "#2f9e44" }}>+{Number(w.amount) / 1e6} USDC</span>
+                    <span style={{ color: T.winLime }}>+{Number(w.amount) / 1e6} USDC</span>
                   </div>
                 ))}
               </div>
@@ -380,7 +422,7 @@ function Podium({ board, settlement }: { board: LB[]; settlement: Settlement | n
                   view the settlement transaction ↗
                 </a>
               ) : (
-                <span style={{ color: T.muted, fontSize: 13, fontWeight: 700 }}>(stub mode — no relayer key set)</span>
+                <span style={{ color: T.muted, fontSize: 13, fontWeight: 700 }}>(stub mode, no relayer key set)</span>
               )}
             </Card>
           </motion.div>
@@ -401,13 +443,13 @@ function Ticker({ anchors }: { anchors: Anchor[] }) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            style={{ background: T.primaryGrad, color: "#fff", borderRadius: 14, padding: "9px 13px", boxShadow: T.shadowBtn(), fontWeight: 800, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}
+            style={{ background: T.primaryGrad, color: "#fff", ...squircle(14), padding: "9px 13px", boxShadow: T.shadowBtn(), fontWeight: 800, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}
           >
             <span style={{ fontSize: 15 }}>⚡</span>
             <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {a.name} · answer anchored
             </span>
-            <span style={{ fontFamily: "ui-monospace, monospace", opacity: 0.85, fontSize: 11 }}>q{a.questionIndex + 1}</span>
+            <span style={{ fontFamily: "var(--font-mono)", opacity: 0.85, fontSize: 11 }}>q{a.questionIndex + 1}</span>
           </motion.div>
         ))}
       </AnimatePresence>
@@ -418,10 +460,10 @@ function Ticker({ anchors }: { anchors: Anchor[] }) {
 /* ─────────────── atoms ─────────────── */
 
 function Card({ children, style }: { children: any; style?: React.CSSProperties }) {
-  return <div style={{ background: T.card, borderRadius: T.rBig, boxShadow: T.shadowFloat, ...style }}>{children}</div>;
+  return <div style={{ background: T.card, ...squircle(T.rBig), boxShadow: T.shadowFloat, ...style }}>{children}</div>;
 }
 
-function PillButton({ children, onClick, disabled, big, color = "47,125,246" }: any) {
+function PillButton({ children, onClick, disabled, big, color = "124,58,237" }: any) {
   return (
     <motion.button
       whileTap={{ scale: 0.94 }}
@@ -462,10 +504,10 @@ function Ring({ frac, seconds, hidden }: { frac: number; seconds: number; hidden
     <div style={{ position: "absolute", top: -34, left: "50%", transform: "translateX(-50%)", opacity: hidden ? 0 : 1, transition: "opacity .3s" }}>
       <motion.div animate={{ scale: urgent ? [1, 1.12, 1] : 1 }} transition={{ duration: 0.5, repeat: urgent ? Infinity : 0 }} style={{ position: "relative", width: 84, height: 84 }}>
         <svg width="84" height="84" style={{ transform: "rotate(-90deg)" }}>
-          <circle cx="42" cy="42" r={R} fill="#fff" stroke="#eef0f7" strokeWidth="8" />
-          <circle cx="42" cy="42" r={R} fill="none" stroke={urgent ? "#e5484d" : T.primary} strokeWidth="8" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - frac)} />
+          <circle cx="42" cy="42" r={R} fill="#fff" stroke={T.cardTint} strokeWidth="8" />
+          <circle cx="42" cy="42" r={R} fill="none" stroke={urgent ? T.danger : T.primary} strokeWidth="8" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - frac)} />
         </svg>
-        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontWeight: 900, fontSize: 30, color: urgent ? "#e5484d" : T.ink, fontVariantNumeric: "tabular-nums" }}>{seconds}</div>
+        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontFamily: "var(--font-mono)", fontWeight: 900, fontSize: 30, color: urgent ? T.danger : T.ink, fontVariantNumeric: "tabular-nums" }}>{seconds}</div>
       </motion.div>
     </div>
   );
@@ -489,7 +531,7 @@ function Medal({ rank }: { rank: number }) {
 
 function Toast({ msg }: { msg: string }) {
   return (
-    <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "#e5484d", color: "#fff", fontWeight: 800, padding: "12px 20px", borderRadius: 14, boxShadow: T.shadowCard, zIndex: 60 }}>
+    <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", background: T.danger, color: "#fff", fontWeight: 800, padding: "12px 20px", ...squircle(14), boxShadow: T.shadowCard, zIndex: 60 }}>
       ⚠ {msg}
     </div>
   );
@@ -501,7 +543,7 @@ function rowStyle(first: boolean): React.CSSProperties {
     justifyContent: "space-between",
     alignItems: "center",
     padding: "12px 18px",
-    borderRadius: 16,
+    ...squircle(16),
     background: first ? "#fff" : T.cardTint,
     boxShadow: first ? T.shadowCard : "none",
   };

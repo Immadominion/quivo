@@ -18,8 +18,21 @@
  */
 import { WebSocketServer, type WebSocket } from "ws";
 import { Client, type Room } from "colyseus.js";
+import { matchMaker } from "colyseus";
 
 const RELAY = ["question", "reveal", "podium", "settled", "anchored", "chainReady", "error"] as const;
+
+// Colyseus room ids are a case-sensitive, symbol-including nanoid (a-zA-Z0-9_-). The phone's join
+// field forces upper-case and strips symbols for typability, so a raw string match would fail for
+// almost every real code. Resolve the typed code against live rooms, ignoring case and symbols.
+const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+async function resolveRoomId(typedCode: string): Promise<string> {
+  const target = normalizeCode(typedCode);
+  const rooms = await matchMaker.query({ name: "quivo" });
+  const match = rooms.find((r) => normalizeCode(r.roomId) === target);
+  return match?.roomId ?? typedCode;
+}
 
 /** Runs on its own port (default 2568) to avoid WS-upgrade contention with Colyseus. */
 export function startMobileGateway(port: number, colyseusEndpoint: string) {
@@ -57,8 +70,9 @@ export function startMobileGateway(port: number, colyseusEndpoint: string) {
       if (msg.t === "join") {
         if (room) return;
         try {
+          const roomId = await resolveRoomId(String(msg.code ?? "").trim());
           const client = new Client(colyseusEndpoint);
-          room = await client.joinById(String(msg.code).trim(), { name: msg.name ?? "player", wallet: msg.wallet });
+          room = await client.joinById(roomId, { name: msg.name ?? "player", wallet: msg.wallet });
           send({ t: "joined", sessionId: room.sessionId });
           room.onStateChange(() => pushState());
           for (const type of RELAY) room.onMessage(type, (m: any) => send({ t: type, ...m }));

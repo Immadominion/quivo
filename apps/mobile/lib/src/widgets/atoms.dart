@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/tokens.dart';
 
-/// Scaffold that paints the Candy Arcade lavender ground behind everything.
+/// Scaffold that paints the Floodlight bright ground behind everything.
 class GroundScaffold extends StatelessWidget {
   const GroundScaffold({super.key, required this.child, this.padding, this.bottom});
   final Widget child;
@@ -40,10 +40,9 @@ class QCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: padding,
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: color ?? QC.card,
-        borderRadius: BorderRadius.circular(radius ?? QC.rBig),
-        boxShadow: QC.shadowFloat,
+        shape: QC.squircle(radius ?? QC.rBig),
       ),
       child: child,
     );
@@ -119,7 +118,7 @@ class _PillButtonState extends State<PillButton> {
   }
 }
 
-/// The coin — money motif. Optionally spins.
+/// The coin - money motif. Optionally spins.
 class Coin extends StatelessWidget {
   const Coin({super.key, this.size = 26, this.spin = false});
   final double size;
@@ -148,22 +147,31 @@ class Coin extends StatelessWidget {
         ),
       ),
     );
-    if (!spin) return coin;
+    // Respect the OS "Reduce Motion" setting - no perpetual spin for those users.
+    if (!spin || MediaQuery.disableAnimationsOf(context)) return coin;
     return coin.animate(onPlay: (c) => c.repeat()).rotate(duration: 1400.ms, begin: 0, end: 1);
   }
 }
 
-/// Deterministic avatar disc from a wallet/name.
+/// Deterministic avatar disc from a wallet/name, optionally stamped with an initial.
 class PlayerAvatar extends StatelessWidget {
-  const PlayerAvatar({super.key, required this.seed, this.size = 40});
+  const PlayerAvatar({super.key, required this.seed, this.size = 40, this.initial});
   final String seed;
   final double size;
+  final String? initial;
   @override
   Widget build(BuildContext context) {
     return Container(
       width: size,
       height: size,
+      alignment: Alignment.center,
       decoration: BoxDecoration(shape: BoxShape.circle, gradient: playerGradient(seed), boxShadow: QC.shadowCard),
+      child: initial == null || initial!.isEmpty
+          ? null
+          : Text(
+              initial!.substring(0, 1).toUpperCase(),
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: size * 0.44, color: Colors.white),
+            ),
     );
   }
 }

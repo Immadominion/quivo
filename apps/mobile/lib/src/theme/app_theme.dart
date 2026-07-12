@@ -4,7 +4,8 @@ import 'tokens.dart';
 
 ThemeData buildQuivoTheme() {
   final base = ThemeData(useMaterial3: true, brightness: Brightness.light);
-  final text = GoogleFonts.nunitoTextTheme(base.textTheme).apply(
+  final text = base.textTheme.apply(
+    fontFamily: 'Satoshi',
     bodyColor: QC.ink,
     displayColor: QC.ink,
   );
@@ -12,30 +13,36 @@ ThemeData buildQuivoTheme() {
     scaffoldBackgroundColor: QC.groundBot,
     colorScheme: base.colorScheme.copyWith(primary: QC.primary, surface: QC.card),
     textTheme: text.copyWith(
-      // heavy by default — the Candy Arcade rule
-      bodyMedium: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-      titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-      headlineSmall: text.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+      bodyMedium: text.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+      titleMedium: text.titleMedium?.copyWith(fontFamily: 'Clash Display', fontWeight: FontWeight.w600),
+      headlineSmall: text.headlineSmall?.copyWith(fontFamily: 'Clash Display', fontWeight: FontWeight.w700),
     ),
     splashFactory: InkRipple.splashFactory,
   );
 }
 
-/// Weighted text helpers (Nunito 700/800/900) used across screens.
+/// Weighted text helpers used across screens.
+/// Clash Display = headlines/titles/big numbers-as-headline. Satoshi = all body/UI copy.
+/// JetBrains Mono = numbers ONLY (scores, timers, amounts, addresses) - never body/display for a
+/// number that updates or gets compared at a glance.
 class QText {
   static TextStyle h1(BuildContext c) =>
-      GoogleFonts.nunito(fontSize: 30, fontWeight: FontWeight.w900, color: QC.ink, letterSpacing: -0.5);
+      const TextStyle(fontFamily: 'Clash Display', fontSize: 30, fontWeight: FontWeight.w700, color: QC.ink, letterSpacing: -0.6);
   static TextStyle h2(BuildContext c) =>
-      GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w900, color: QC.ink);
+      const TextStyle(fontFamily: 'Clash Display', fontSize: 22, fontWeight: FontWeight.w700, color: QC.ink, letterSpacing: -0.3);
   static TextStyle title(BuildContext c) =>
-      GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: QC.ink);
+      const TextStyle(fontFamily: 'Clash Display', fontSize: 18, fontWeight: FontWeight.w600, color: QC.ink);
   static TextStyle body(BuildContext c) =>
-      GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700, color: QC.body);
+      const TextStyle(fontFamily: 'Satoshi', fontSize: 16, fontWeight: FontWeight.w500, color: QC.body);
   static TextStyle muted(BuildContext c) =>
-      GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700, color: QC.muted);
-  static TextStyle mono(BuildContext c, {double size = 13, Color? color}) => GoogleFonts.jetBrainsMono(
-        fontSize: size,
+      const TextStyle(fontFamily: 'Satoshi', fontSize: 14, fontWeight: FontWeight.w500, color: QC.muted);
+  static TextStyle overline(BuildContext c, {Color? color}) => TextStyle(
+        fontFamily: 'Satoshi',
+        fontSize: 11.5,
         fontWeight: FontWeight.w700,
-        color: color ?? QC.body,
+        letterSpacing: 0.8,
+        color: color ?? QC.muted,
       );
+  static TextStyle mono(BuildContext c, {double size = 13, Color? color, FontWeight weight = FontWeight.w700}) =>
+      GoogleFonts.jetBrainsMono(fontSize: size, fontWeight: weight, color: color ?? QC.body);
 }

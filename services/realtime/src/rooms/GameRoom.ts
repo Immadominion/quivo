@@ -7,6 +7,7 @@
  * leaderboard cheaply; discrete events (a new question, the reveal, the settlement) are broadcast as
  * messages that mirror @quivo/protocol's ServerMessage union.
  */
+import { randomBytes, randomInt } from "node:crypto";
 import { Room, type Client } from "colyseus";
 import { Schema, MapSchema, type } from "@colyseus/schema";
 import { keccak_256 } from "@noble/hashes/sha3";
@@ -19,6 +20,11 @@ import {
   type QuestionPublic,
 } from "@quivo/protocol";
 import type { ChainWorker } from "../chain/worker";
+
+/** 6-char join code with no ambiguous glyphs (no O/0, no I/1) — typed off a projector by strangers. */
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const friendlyCode = () =>
+  Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
 
 class PlayerState extends Schema {
   @type("string") name = "";
@@ -87,6 +93,11 @@ export class GameRoom extends Room<GameState> {
   private chainInit: Promise<{ gamePubkey: string }> | null = null;
 
   onCreate(options: CreateOptions) {
+    // Friendly join code: people type this from a projector. Uppercase-only, no ambiguous glyphs
+    // (no O/0, I/1/l). Set first — roomId is the server-side gameId key below. It is NOT the
+    // commitment salt (that's a secret; the code is public).
+    // (Colyseus registers the listing after onCreate, so overriding roomId here is supported.)
+    this.roomId = friendlyCode();
     this.chain = options.chain;
     this.questions = options.questions?.length ? options.questions : DEMO_QUESTIONS;
     if (options.potAmount) this.potAmount = BigInt(options.potAmount);
@@ -100,7 +111,11 @@ export class GameRoom extends Room<GameState> {
     // Commit-reveal: hash the full question set (answers included) + a salt, escrow the pot, and
     // post the commitment BEFORE anyone plays — the host provably can't swap questions afterwards.
     // (Reveal bytes ride in the settle tx, so keep question sets small; hash-of-hashes later.)
-    this.revealBytes = Buffer.from(JSON.stringify({ questions: this.questions, salt: this.roomId }));
+    // The salt must be secret until reveal — the room code is public (it's on the projector), and
+    // with a public salt anyone holding a candidate question set could verify it against the
+    // commitment mid-game and learn the answers. 32 random bytes, server-side only until settle.
+    const salt = randomBytes(32).toString("hex");
+    this.revealBytes = Buffer.from(JSON.stringify({ questions: this.questions, salt }));
     const commitment = keccak_256(this.revealBytes);
     this.chainInit = this.chain
       .initGame({

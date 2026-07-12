@@ -1,79 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
-/// Quivo "Candy Arcade" design tokens — Dart port of the web theme (../../docs/DESIGN.md).
+/// Quivo "Floodlight" design tokens - see ../../../docs/DESIGN.md.
+/// One primary color (violet), no gradients as brand decisions, no shadows, squircle corners.
 class QC {
   QC._();
 
-  static const ink = Color(0xFF161D33);
-  static const body = Color(0xFF1B2237);
-  static const muted = Color(0xFF8B94AC);
-  static const line = Color(0xFFD3E1FB);
+  // text on light backgrounds
+  static const ink = Color(0xFF17122A);
+  static const body = Color(0xFF2A2140);
+  static const muted = Color(0xFF938DA8);
+  static const line = Color(0xFFEBE6F5);
 
-  static const groundTop = Color(0xFFACA5C6);
-  static const groundBot = Color(0xFF9C94B8);
+  // bright canvas
+  static const groundTop = Color(0xFFFFFFFF);
+  static const groundBot = Color(0xFFF6F1FE);
   static const card = Color(0xFFFFFFFF);
-  static const cardTint = Color(0xFFE6EFFD);
+  static const cardTint = Color(0xFFF3EEFF);
 
-  static const primary = Color(0xFF2F7DF6);
-  static const primaryText = Color(0xFF2B6BE4);
-  static const primaryDeep = Color(0xFF2456D6);
+  // "night" - the dark ink surface for host cards, verdict cards, wallet balance, nav
+  static const night = Color(0xFF120F1C);
 
-  static const winPurpleA = Color(0xFFC25FF2);
-  static const winPurpleB = Color(0xFF9430DB);
-  static const winLime = Color(0xFF82B11D);
-  static const winGreen = Color(0xFF2F9E44);
+  // THE one primary color. A second (magenta) exists for sparing, single-color accent use only
+  // (e.g. one trait chip) - never paired with primary as a gradient.
+  static const primary = Color(0xFF7C3AED);
+  static const primaryText = Color(0xFF7C3AED);
+  static const primaryDeep = primary;
+  static const magenta = Color(0xFFE93D82);
 
-  static const coinA = Color(0xFFFFCF7A);
+  // secondary accents kept from Quivo's existing coin/status vocabulary - each a single solid.
+  static const winPurpleA = primary;
+  static const winPurpleB = primary;
+  static const winLime = winGreen;
+  static const winGreen = Color(0xFF22C55E);
+
+  static const coinA = Color(0xFFF2951F);
   static const coinB = Color(0xFFF2951F);
-  static const danger = Color(0xFFE5484D);
+  static const danger = Color(0xFFF43F5E);
+  static const amber = Color(0xFFF59E0B);
+  static const amberPale = Color(0xFFFEF3C7);
+  static const info = Color(0xFF3B82F6);
+  static const infoPale = Color(0xFFDBEAFE);
 
+  // Kept as `Gradient`-typed so existing `gradient:` call sites don't need touching - both stops
+  // are now the SAME color, so every one of these paints as a flat, single-color fill.
   static const ground = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [groundTop, groundBot],
   );
-  static const primaryGrad = LinearGradient(colors: [primaryDeep, primary]);
-  static const winPurpleGrad = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [winPurpleA, winPurpleB],
-  );
-  static const coinGrad = RadialGradient(center: Alignment(-0.3, -0.4), colors: [coinA, coinB]);
+  static const primaryGrad = LinearGradient(colors: [primary, primary]);
+  static const winPurpleGrad = primaryGrad;
+  static const nightGrad = LinearGradient(colors: [night, night]);
+  static const coinGrad = LinearGradient(colors: [coinB, coinB]);
 
-  // radii
-  static const rCard = 26.0;
-  static const rBig = 30.0;
-  static const rTile = 20.0;
+  // radii - used as the cornerRadius for `squircle()` below.
+  static const rCard = 24.0;
+  static const rBig = 28.0;
+  static const rTile = 18.0;
 
-  static List<BoxShadow> shadowCard = const [
-    BoxShadow(color: Color(0x1A302355), blurRadius: 20, offset: Offset(0, 8)),
-  ];
-  static List<BoxShadow> shadowFloat = const [
-    BoxShadow(color: Color(0x1F343060), blurRadius: 34, offset: Offset(0, 16)),
-  ];
-  static List<BoxShadow> btnShadow(Color rgb) => [
-        BoxShadow(color: rgb.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 6)),
-      ];
+  /// Superellipse ("squircle") corners - see docs/DESIGN.md. Use as `ShapeDecoration(shape: ...)`
+  /// or directly as a Material `shape:`. `smoothing` 0.6 matches iOS's continuous-corner feel.
+  static ShapeBorder squircle(double radius, {double smoothing = 0.6}) => SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius(cornerRadius: radius, cornerSmoothing: smoothing),
+      );
+
+  /// No shadows anywhere - kept as a no-op so existing `boxShadow:`/`btnShadow()` call sites don't
+  /// need touching. Depth comes from color and spacing only, never a drop shadow.
+  static List<BoxShadow> shadowCard = const [];
+  static List<BoxShadow> shadowFloat = const [];
+  static List<BoxShadow> btnShadow(Color rgb) => const [];
+
+  /// No-op - the old glow-blob effect (a radial-gradient "shadow") is retired along with shadows
+  /// and gradients. Kept so call sites can stay as-is; it paints nothing.
+  static BoxDecoration glowBlob(Color color) => const BoxDecoration();
 }
 
-/// The four answer colors — the shared vocabulary with the stage (Kahoot grammar).
+/// The four answer colors - the shared vocabulary with the stage (Kahoot grammar). Each answer is
+/// ONE solid color (no gradient) - `.gradient` is kept only so existing `gradient:` call sites
+/// compile; it degenerates to the same solid color at both stops.
 class QAnswer {
   final String glyph;
   final Color solid;
   final List<Color> grad;
   const QAnswer(this.glyph, this.solid, this.grad);
-  LinearGradient get gradient =>
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: grad);
+  LinearGradient get gradient => LinearGradient(colors: [solid, solid]);
 }
 
 const kAnswers = <QAnswer>[
-  QAnswer('▲', Color(0xFFE5484D), [Color(0xFFF2588F), Color(0xFFD92D3F)]),
-  QAnswer('◆', Color(0xFF2F7DF6), [Color(0xFF4AA8F0), Color(0xFF1F4FD6)]),
-  QAnswer('●', Color(0xFFEDA13D), [Color(0xFFF8B64C), Color(0xFFE8681E)]),
-  QAnswer('■', Color(0xFF3FA14E), [Color(0xFF8DE06A), Color(0xFF2F9E44)]),
+  QAnswer('▲', Color(0xFFF43F5E), [Color(0xFFF43F5E), Color(0xFFF43F5E)]),
+  QAnswer('◆', Color(0xFF3B82F6), [Color(0xFF3B82F6), Color(0xFF3B82F6)]),
+  QAnswer('●', Color(0xFFF59E0B), [Color(0xFFF59E0B), Color(0xFFF59E0B)]),
+  QAnswer('■', Color(0xFF22C55E), [Color(0xFF22C55E), Color(0xFF22C55E)]),
 ];
 
-/// Deterministic candy gradient/color for a wallet or name (avatars, chips).
+/// Deterministic identicon color for a wallet or name (avatars, chips) - per-user color variety is
+/// a data-visualization technique (distinguishing players), not a brand gradient decision, so this
+/// intentionally stays hue-varied rather than collapsing to the single primary color.
 Color playerColor(String seed) {
   var h = 0;
   for (var i = 0; i < seed.length; i++) {
@@ -82,17 +105,11 @@ Color playerColor(String seed) {
   return HSLColor.fromAHSL(1, h.toDouble(), 0.82, 0.56).toColor();
 }
 
+/// Single solid identicon fill (was a two-tone gradient) - same hue derivation as [playerColor].
+Color playerSolid(String seed) => playerColor(seed);
+
+/// Kept for compatibility with existing call sites expecting a Gradient; degenerates to one color.
 LinearGradient playerGradient(String seed) {
-  var h = 0;
-  for (var i = 0; i < seed.length; i++) {
-    h = (h * 31 + seed.codeUnitAt(i)) % 360;
-  }
-  return LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      HSLColor.fromAHSL(1, h.toDouble(), 0.85, 0.62).toColor(),
-      HSLColor.fromAHSL(1, (h + 40) % 360, 0.75, 0.45).toColor(),
-    ],
-  );
+  final c = playerColor(seed);
+  return LinearGradient(colors: [c, c]);
 }
