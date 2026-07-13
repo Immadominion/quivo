@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --border-radius: 12px;
+  --box-shadow-x: 6px;
+  --box-shadow-y: 6px;
+  --reverse-box-shadow-x: -6px;
+  --reverse-box-shadow-y: -6px;
+
+  --heading-font-weight: 900;
+  --base-font-weight: 700;
+
+  /* Quivo brand, neobrutalist treatment: thick black borders + hard offset shadows */
+  --background: #f3eeff;
+  --secondary-background: #ffffff;
+  --foreground: #17122a;
+  --main-foreground: #ffffff;
+
+  --main: #7c3aed;
+  --magenta: #e93d82;
+  --border: #17122a;
+  --ring: #17122a;
+  --overlay: rgb(23 18 42 / 0.75);
+
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+
+  /* the four answer-tile colors, shared with the live game (docs/DESIGN.md ANSWERS) */
+  --chart-1: #f43f5e;
+  --chart-2: #3b82f6;
+  --chart-3: #f59e0b;
+  --chart-4: #22c55e;
+  --chart-5: #7c3aed;
+}
+
+@theme inline {
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Clash Display", "Satoshi", ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains-mono);
+
+  --color-main: var(--main);
+  --color-magenta: var(--magenta);
+  --color-background: var(--background);
+  --color-secondary-background: var(--secondary-background);
+  --color-foreground: var(--foreground);
+  --color-main-foreground: var(--main-foreground);
+  --color-border: var(--border);
+  --color-overlay: var(--overlay);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --spacing-boxShadowX: var(--box-shadow-x);
+  --spacing-boxShadowY: var(--box-shadow-y);
+  --spacing-reverseBoxShadowX: var(--reverse-box-shadow-x);
+  --spacing-reverseBoxShadowY: var(--reverse-box-shadow-y);
+
+  --radius-base: var(--border-radius);
+
+  --shadow-shadow: var(--shadow);
+  --shadow-nav: 6px 6px 0px 0px var(--border);
+
+  --font-weight-base: var(--base-font-weight);
+  --font-weight-heading: var(--heading-font-weight);
+
+  --animate-marquee: marquee 22s linear infinite;
+  --animate-marquee2: marquee2 22s linear infinite;
+
+  --spacing-container: 1300px;
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  @keyframes marquee2 {
+    0% {
+      transform: translateX(100%);
+    }
+    100% {
+      transform: translateX(0%);
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans font-base;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display font-heading;
+  }
+}

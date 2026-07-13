@@ -2,5 +2,6 @@
 # `onchain` (Rust/Cargo) and `apps/mobile` (Flutter/pub) manage their own dependencies.
 packages:
   - "apps/stage"
+  - "apps/landing"
   - "services/*"
   - "packages/*"

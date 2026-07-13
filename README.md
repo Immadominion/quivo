@@ -13,12 +13,16 @@ Solana + MagicBlock's real-time Ephemeral Rollups.
 
 **Live on devnet:** program [`BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG`](https://explorer.solana.com/address/BgUU6i94wtZrx215bGBRZePEDXTYC4snNrbDEymVcCVG?cluster=devnet) — escrow · question commit-reveal · ER delegate/commit settle.
 
+**Try it:** [usequivo.fun](https://usequivo.fun) (landing) · [app.usequivo.fun](https://app.usequivo.fun)
+(host/stage view + web player, real devnet payouts) · **Watch it:** [demo video](https://youtu.be/oTDprAI4UXk)
+
 ## Monorepo layout
 
 ```
 apps/
   mobile/      Flutter — the PLAYER app (scan → join → answer → get paid)
-  stage/       Next.js — the HOST big-screen presenter + landing        → Vercel
+  landing/     Next.js — marketing landing page                          → Vercel (usequivo.fun)
+  stage/       Next.js — the HOST big-screen presenter + web player      → Vercel (app.usequivo.fun)
 services/
   realtime/    Node + Colyseus — authoritative game server + chain worker → Railway
 onchain/
@@ -54,8 +58,9 @@ Copy `.env.example` → `.env` and fill it before running the realtime service.
 
 | Package | Platform | Notes |
 |---|---|---|
-| `apps/stage` | **Vercel** | Root Directory = `apps/stage`, deploys on push to `main` |
-| `services/realtime` | **Railway** | long-running WS service + Postgres plugin + Redis plugin |
+| `apps/landing` | **Vercel** (`quivo-landing`) | Root Directory = `apps/landing`, aliased to `usequivo.fun` |
+| `apps/stage` | **Vercel** (`quivo-stage`) | Root Directory = `apps/stage`, aliased to `app.usequivo.fun` |
+| `services/realtime` | **Railway** | long-running WS service; single-node (Redis optional for multi-instance) |
 | `onchain` | **Solana devnet** | `anchor deploy`; MagicBlock ER resolved at runtime |
 | `apps/mobile` | APK / TestFlight | Solana Mobile dApp Store-ready (stretch) |
 

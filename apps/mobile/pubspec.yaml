@@ -17,7 +17,9 @@ dependencies:
 
   # realtime (JSON gateway) + solana (throtl-proven)
   web_socket_channel: ^3.0.1
-  solana: ^0.32.0
+  solana: ^0.31.2+1 # 0.31.x line pairs with solana_mobile_client (freezed_annotation ^2); also web3flutter-recommended
+  solana_mobile_client: ^0.1.2 # Mobile Wallet Adapter (Seed Vault / external wallet connect, Android)
+  tld_parser: ^0.1.0 # AllDomains reverse resolution (.skr / .sol / any TLD) for the display name
   flutter_secure_storage: ^9.2.4
   shared_preferences: ^2.3.3
   http: ^1.2.2
@@ -66,22 +68,23 @@ flutter:
         - asset: assets/fonts/Satoshi-Black.ttf
           weight: 900
 
-# App icon (run: dart run flutter_launcher_icons)
+# App icon (run: dart run flutter_launcher_icons) - the Quivo answer-cards mark
 flutter_launcher_icons:
-  image_path: "assets/branding/icon.png"
+  image_path: "assets/branding/quivo-logo.png"
   android: true
   ios: true
   remove_alpha_ios: true
-  min_sdk_android: 21
-  adaptive_icon_background: "#150F24"
-  adaptive_icon_foreground: "assets/branding/icon_fg.png"
+  min_sdk_android: 23
+  adaptive_icon_background: "#0B0714"
+  adaptive_icon_foreground: "assets/branding/quivo-logo.png"
 
-# Launch splash (run: dart run flutter_native_splash:create)
+# Launch splash (run: dart run flutter_native_splash:create) - logo centered on the dark mark bg,
+# matching the icon so the boot reads as one piece before the light app appears.
 flutter_native_splash:
-  color: "#FCFAFF"
-  image: "assets/branding/splash.png"
+  color: "#0B0714"
+  image: "assets/branding/quivo-logo.png"
   android: true
   ios: true
   android_12:
-    color: "#FCFAFF"
-    image: "assets/branding/splash.png"
+    color: "#0B0714"
+    image: "assets/branding/quivo-logo.png"

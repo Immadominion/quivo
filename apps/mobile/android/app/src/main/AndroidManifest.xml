@@ -41,5 +41,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Mobile Wallet Adapter: lets us resolve/launch the installed Solana wallet (Seed Vault
+             on Seeker) for the connect handoff on Android 11+ package-visibility. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="solana-wallet"/>
+        </intent>
     </queries>
 </manifest>
