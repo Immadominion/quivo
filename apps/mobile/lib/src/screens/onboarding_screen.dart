@@ -77,12 +77,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _name.selection = TextSelection.collapsed(offset: name.length);
       });
     });
-    // The slides step is full-bleed (not GroundScaffold) so the win.lottie coin rain can fill the
-    // whole screen, edge to edge and behind the button. Other steps keep the padded GroundScaffold.
+    // The slides + connect steps are full-bleed (not GroundScaffold): slides for the coin rain,
+    // connect for the bg-txt background image. The name step keeps the padded GroundScaffold.
     if (_step == _Step.slides) return _slidesScaffold();
-    return GroundScaffold(
-      child: _step == _Step.connect ? _ConnectStep(onDone: _toSlides) : _nameView(),
-    );
+    if (_step == _Step.connect) return _ConnectStep(onDone: _toSlides);
+    return GroundScaffold(child: _nameView());
   }
 
   Widget _slidesScaffold() {
@@ -284,7 +283,8 @@ class _SlideView extends StatelessWidget {
 }
 
 /// Step 1: connect a real wallet (MWA / Seed Vault). Guest fallback keeps iOS + no-wallet users
-/// moving, but connect is the hero path.
+/// moving, but connect is the hero path. Full-bleed bg-txt art, headline top-left in white, the two
+/// actions pinned to the bottom like the slides.
 class _ConnectStep extends ConsumerWidget {
   const _ConnectStep({required this.onDone});
   final VoidCallback onDone;
@@ -301,55 +301,62 @@ class _ConnectStep extends ConsumerWidget {
       if (conn != null && context.mounted) onDone();
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 110,
-                height: 110,
-                decoration: const BoxDecoration(color: QC.primary, shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: const Icon(FluentIcons.wallet_24_filled, color: Colors.white, size: 52),
-              ).animate().scale(begin: const Offset(0.7, 0.7), curve: Curves.easeOutBack, duration: 450.ms),
-              const SizedBox(height: 26),
-              Text('Bring your wallet', style: QText.h1(context), textAlign: TextAlign.center),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'Connect your Solana wallet so prizes land with you, and your account is still yours if you reinstall.',
-                  textAlign: TextAlign.center,
-                  style: QText.body(context).copyWith(color: QC.body),
+    // Dark art background, so white status-bar icons + white text.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: QC.night,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset('assets/branding/bg-txt.png', fit: BoxFit.cover),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bring your\nwallet',
+                      style: QText.h1(context).copyWith(color: Colors.white, fontSize: 44, height: 1.02),
+                    ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.06, end: 0),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: 300,
+                      child: Text(
+                        'Connect your Solana wallet so prizes land with you, and your account is still yours if you reinstall.',
+                        style: QText.body(context).copyWith(color: Colors.white.withValues(alpha: 0.88), height: 1.4),
+                      ),
+                    ),
+                    const Spacer(),
+                    PillButton(
+                      label: connecting ? 'Opening wallet...' : 'Connect wallet',
+                      big: true,
+                      enabled: !connecting,
+                      leading: connecting
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(FluentIcons.wallet_24_filled, color: Colors.white, size: 20),
+                      onTap: doConnect,
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: connecting ? null : onDone,
+                        child: Text(
+                          'Continue as guest',
+                          style: QText.body(context).copyWith(color: Colors.white.withValues(alpha: 0.75), fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                    if (connect.status == ConnectStatus.error && connect.error != null) ...[
+                      const SizedBox(height: 6),
+                      Text(connect.error!, textAlign: TextAlign.center, style: QText.muted(context).copyWith(color: Colors.white)),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 30),
-              PillButton(
-                label: connecting ? 'Opening wallet...' : 'Connect wallet',
-                big: true,
-                enabled: !connecting,
-                leading: connecting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(FluentIcons.wallet_24_filled, color: Colors.white, size: 20),
-                onTap: doConnect,
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: connecting ? null : onDone,
-                child: Text('Continue as guest', style: QText.muted(context)),
-              ),
-              if (connect.status == ConnectStatus.error && connect.error != null) ...[
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(connect.error!, textAlign: TextAlign.center, style: QText.muted(context).copyWith(color: QC.danger)),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
