@@ -316,6 +316,8 @@ class _ConnectStep extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Empty top ~3/4, so the headline sits low on the art, not up top.
+                    const Spacer(flex: 3),
                     Text(
                       'Bring your\nwallet',
                       style: QText.h1(context).copyWith(color: Colors.white, fontSize: 44, height: 1.02),
@@ -328,7 +330,7 @@ class _ConnectStep extends ConsumerWidget {
                         style: QText.body(context).copyWith(color: Colors.white.withValues(alpha: 0.88), height: 1.4),
                       ),
                     ),
-                    const Spacer(),
+                    const Spacer(flex: 1),
                     PillButton(
                       label: connecting ? 'Opening wallet...' : 'Connect wallet',
                       big: true,
