@@ -9,11 +9,14 @@ import 'night_card.dart';
 /// The host commentary card - Q hypes/teases the player. Short (1-2 sentences), never mean.
 /// Reference: Touchline's "Gaffer" persona card, reskinned. See docs/DESIGN.md §2.1.
 class HostCard extends StatelessWidget {
-  const HostCard({super.key, required this.line, this.ctaLabel, this.onTap, this.hostImagePath});
+  const HostCard({super.key, required this.line, this.ctaLabel, this.onTap, this.hostImagePath, this.live = false});
   final String line;
   final String? ctaLabel;
   final VoidCallback? onTap;
   final String? hostImagePath;
+
+  /// Only true when a session is genuinely live (the lobby). No fake presence signals.
+  final bool live;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +27,7 @@ class HostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              HostAvatar(size: 46, imagePath: hostImagePath),
+              HostAvatar(size: 46, imagePath: hostImagePath, live: live),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

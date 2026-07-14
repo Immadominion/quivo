@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +10,8 @@ import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/atoms.dart';
 
-/// History tab, every finished game, most recent first. Rows link to the settlement tx.
+/// Every finished game, most recent first; rows link to the settlement tx. Pushed above the shell
+/// (reached from Home's "See all" and from Wallet), so it brings its own ground + back chip.
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
 
@@ -17,33 +19,50 @@ class HistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(historyProvider);
 
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('History', style: QText.h1(context)),
-            const SizedBox(height: 16),
-            Expanded(
-              child: history.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: QC.primary)),
-                error: (_, __) => Center(child: Text('Couldn’t load history', style: QText.muted(context))),
-                data: (list) => list.isEmpty
-                    ? _Empty(onPlay: () => context.push('/join'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 100),
-                        itemCount: list.length,
-                        itemBuilder: (context, i) => _HistoryRow(entry: list[i])
-                            .animate()
-                            .fadeIn(delay: (40 * i).ms, duration: 260.ms)
-                            .slideY(begin: 0.06, end: 0),
-                      ),
+    return GroundScaffold(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => context.canPop() ? context.pop() : context.go('/home'),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: QC.card,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: QC.borderColor, width: QC.borderWidth),
+                    boxShadow: QC.shadowCard,
+                  ),
+                  child: const Icon(FluentIcons.arrow_left_24_regular, size: 20, color: QC.ink),
+                ),
               ),
+              const SizedBox(width: 14),
+              Text('History', style: QText.h1(context)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: history.when(
+              loading: () => const Center(child: CircularProgressIndicator(color: QC.primary)),
+              error: (_, __) => Center(child: Text('Couldn’t load history', style: QText.muted(context))),
+              data: (list) => list.isEmpty
+                  ? _Empty(onPlay: () => context.push('/join'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 32),
+                      itemCount: list.length,
+                      itemBuilder: (context, i) => _HistoryRow(entry: list[i])
+                          .animate()
+                          .fadeIn(delay: (40 * i).ms, duration: 260.ms)
+                          .slideY(begin: 0.06, end: 0),
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

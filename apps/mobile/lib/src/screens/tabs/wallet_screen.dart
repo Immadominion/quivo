@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/balance.dart';
@@ -99,6 +100,31 @@ class WalletScreen extends ConsumerWidget {
                 ],
               ),
             ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0),
+            const SizedBox(height: 16),
+            // History left the nav (three-element bar); its wallet-side entry point is this row.
+            GestureDetector(
+              onTap: () => context.push('/history'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: ShapeDecoration(
+                  color: QC.card,
+                  shape: QC.squircle(QC.rTile),
+                  shadows: QC.shadowCard,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(FluentIcons.history_24_regular, size: 20, color: QC.ink),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Game history', style: QText.body(context).copyWith(fontWeight: FontWeight.w700)),
+                    ),
+                    Text('${stats.played} games', style: QText.mono(context, size: 12, color: QC.muted)),
+                    const SizedBox(width: 6),
+                    const Icon(FluentIcons.chevron_right_16_filled, size: 16, color: QC.muted),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             QCard(
               child: Column(

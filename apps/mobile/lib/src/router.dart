@@ -10,9 +10,10 @@ import 'screens/tabs/wallet_screen.dart';
 import 'screens/tabs/history_screen.dart';
 import 'screens/tabs/profile_screen.dart';
 
-/// App router. Three primary tabs live behind a StatefulShellRoute (Home / Wallet / History);
-/// profile is a full-screen route pushed from the home avatar, and the live session (/play), join,
-/// onboarding, splash and the debug preview are full-screen routes above the shell too.
+/// App router. The shell has exactly two branches (Home, Wallet) flanking the nav's raised JOIN
+/// action. History and Profile are full-screen routes pushed above the shell (from Home's
+/// "See all" / Wallet, and the home avatar respectively), as are the live session (/play), join,
+/// onboarding, splash and the debug preview.
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -22,12 +23,12 @@ final appRouter = GoRouter(
     GoRoute(path: '/play', builder: (c, s) => const PlayScreen()),
     GoRoute(path: '/preview', builder: (c, s) => const PreviewScreen()),
     GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
+    GoRoute(path: '/history', builder: (c, s) => const HistoryScreen()),
     StatefulShellRoute.indexedStack(
       builder: (c, s, shell) => AppShell(navigationShell: shell),
       branches: [
         StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (c, s) => const HomeScreen())]),
         StatefulShellBranch(routes: [GoRoute(path: '/wallet', builder: (c, s) => const WalletScreen())]),
-        StatefulShellBranch(routes: [GoRoute(path: '/history', builder: (c, s) => const HistoryScreen())]),
       ],
     ),
   ],

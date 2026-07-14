@@ -4,10 +4,10 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 
-/// Bottom-nav shell. A compact floating pill with three icon tabs (Home / Wallet / History) and a
-/// big raised JOIN button in the middle with concentric rings - joining by QR is Quivo's hero
-/// action, the exact analog of the scanner button this pattern comes from. Profile is NOT a tab;
-/// the home avatar opens it.
+/// Bottom-nav shell: exactly three elements. Two icon tabs (Home, Wallet) flanking a big raised
+/// JOIN button with concentric rings - joining by QR is Quivo's hero action, the exact analog of
+/// the scanner button this pattern comes from. Profile opens from the home avatar; History is a
+/// pushed screen reachable from Home's "See all" and from Wallet.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
@@ -46,41 +46,27 @@ class AppShell extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        // Home + Wallet share the left half; History mirrors Home on the right.
+                        // One tab per side, perfectly mirrored around the raised JOIN button.
                         Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _TabDot(
-                                icon: index == 0 ? FluentIcons.home_24_filled : FluentIcons.home_24_regular,
-                                label: 'Home',
-                                active: index == 0,
-                                onTap: () => _go(0),
-                              ),
-                              _TabDot(
-                                icon: index == 1 ? FluentIcons.wallet_24_filled : FluentIcons.wallet_24_regular,
-                                label: 'Wallet',
-                                active: index == 1,
-                                onTap: () => _go(1),
-                              ),
-                            ],
+                          child: Center(
+                            child: _TabDot(
+                              icon: index == 0 ? FluentIcons.home_24_filled : FluentIcons.home_24_regular,
+                              label: 'Home',
+                              active: index == 0,
+                              onTap: () => _go(0),
+                            ),
                           ),
                         ),
                         // Well under the raised JOIN button.
                         const SizedBox(width: 74),
                         Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              // Invisible slot so History mirrors Home's distance from the edge.
-                              const SizedBox(width: 44, height: 44),
-                              _TabDot(
-                                icon: index == 2 ? FluentIcons.history_24_filled : FluentIcons.history_24_regular,
-                                label: 'History',
-                                active: index == 2,
-                                onTap: () => _go(2),
-                              ),
-                            ],
+                          child: Center(
+                            child: _TabDot(
+                              icon: index == 1 ? FluentIcons.wallet_24_filled : FluentIcons.wallet_24_regular,
+                              label: 'Wallet',
+                              active: index == 1,
+                              onTap: () => _go(1),
+                            ),
                           ),
                         ),
                       ],

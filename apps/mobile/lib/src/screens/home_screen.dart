@@ -18,14 +18,31 @@ import '../widgets/gamify/host_card.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  /// Q's rotating hype lines for the no-active-game home state. Picked by day of month so it feels
-  /// alive without any new state - purely decorative, upbeat, never mean.
-  static const _hypeLines = [
-    "Nobody's beaten last week's high score yet. Nobody.",
-    "Fastest finger wins ties. Don't overthink it.",
-    "I've got a good feeling about this round. I say that every round.",
-    "Somewhere out there a lobby is waiting for exactly you.",
-  ];
+  /// Q's line, derived from the player's real persisted record (the Cleo pattern: cite the user's
+  /// own numbers; users can't dismiss their own stats as filler). State-triggered, most-specific
+  /// state first; it changes when your record changes, never on a schedule. Voice: hype, tease,
+  /// never mean.
+  static String _qLine(List<HistoryEntry> history) {
+    if (history.isEmpty) {
+      return "First round's the scariest. After that you're hooked. I'll be watching.";
+    }
+    var streak = 0;
+    for (final e in history) {
+      if (!e.won) break;
+      streak++;
+    }
+    final last = history.first;
+    if (streak >= 2) {
+      return '$streak wins on the bounce. One more and I name a trophy after you.';
+    }
+    if (last.won) {
+      return '+${last.amountUsdc.toStringAsFixed(2)} USDC last game. The room knows your name now.';
+    }
+    if (last.rank <= 3) {
+      return '#${last.rank} of ${last.players} last game. One spot off the money. One.';
+    }
+    return '#${last.rank} of ${last.players} last time. We both know that was a warm-up.';
+  }
 
   String _ago(int ms) {
     final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms));
@@ -44,7 +61,7 @@ class HomeScreen extends ConsumerWidget {
     final stats = ref.watch(historyStatsProvider);
     final history = ref.watch(historyProvider).value ?? const <HistoryEntry>[];
     final name = (prefs?.name.isNotEmpty ?? false) ? prefs!.name : 'player';
-    final hypeLine = _hypeLines[DateTime.now().day % _hypeLines.length];
+    final qLine = _qLine(history);
 
     return SafeArea(
       bottom: false,
@@ -111,7 +128,7 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 22),
 
           // ----- Q, the host. -----
-          HostCard(line: hypeLine, ctaLabel: 'Join a game', onTap: () => context.push('/join')),
+          HostCard(line: qLine, ctaLabel: 'Join a game', onTap: () => context.push('/join')),
           const SizedBox(height: 16),
 
           // ----- Your form: real stats + last-5 streak. -----
@@ -149,7 +166,7 @@ class HomeScreen extends ConsumerWidget {
 
           // ----- Recent games (real history) or the first-game nudge. -----
           if (history.isNotEmpty) ...[
-            SectionHeader(title: 'Recent games', onSeeAll: () => context.go('/history')),
+            SectionHeader(title: 'Recent games', onSeeAll: () => context.push('/history')),
             const SizedBox(height: 12),
             for (final (i, e) in history.take(3).indexed)
               Padding(

@@ -28,7 +28,7 @@ class LobbyView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        HostCard(line: _lobbyHypeLine(players.length)),
+        HostCard(line: _lobbyHypeLine(players.length), live: true),
         const SizedBox(height: 8),
         Center(
           child: Text(
