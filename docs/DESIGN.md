@@ -95,12 +95,15 @@ it sits outside the "one primary color" rule.
   dots) stay circles - squircle only applies to rounded-rect corners.
 - Radii: cards 22-26px, hero/sheet cards 26-30px, tiles 16-18px, buttons/chips/avatars full pill
   (still circular at 999px - a pill has no "corner" for a squircle to smooth).
-- **No shadows, anywhere** - not on cards, buttons, avatars, or floating surfaces. Depth and
-  hierarchy come from color and spacing only.
-- **No borders on cards either** - a card is identified by its fill color against the ground, not an
-  outline.
-- No radial "glow blob" effect (the v1 signature move) - retired along with shadows/gradients. Dark
-  `night` cards are a flat solid fill now.
+- **Neobrutalist border + hard shadow, everywhere** (v3, matches the `usequivo.fun` landing page) -
+  every card, button, and floating surface gets a solid `ink`-colored 2px border plus a flat,
+  no-blur offset shadow (`QC.shadowCard`/`shadowFloat`/`btnShadow` in `tokens.dart`; CSS
+  `--shadow: Xpx Ypx 0px 0px var(--border)` on web). This replaces the old v2 "no shadows, no
+  borders, depth from color alone" rule - kept deliberately restrained (one border weight, one
+  shadow offset, no color/blur variation) rather than matching the landing's full halftone-dot /
+  hard-tilt treatment, which stays landing-only.
+- No radial "glow blob" effect (the v1 signature move) - retired along with gradients. Dark `night`
+  cards are a flat solid fill.
 
 ## 2. Signature components (borrowed structure, Quivo content)
 
@@ -155,8 +158,9 @@ degrades gracefully and is trivially swappable** - never a hardcoded illustratio
 3. **No gradients, anywhere, as a brand/UI decision.** One primary color; a second exists only for
    rare single-element accents. The only exception is per-player identicon color variety (data
    visualization, not branding).
-4. **No shadows, anywhere.** Not on cards, buttons, avatars, or floating bars.
-5. **No borders on cards.** A card reads by its fill color, not an outline.
+4. **Every card/button/floating surface gets a 2px `ink` border + one flat, no-blur offset shadow**
+   (v3, see §1) - one weight, one offset, no per-element variation.
+5. (retired in v3 - see §1) cards now carry a border, matching the landing page.
 6. **Squircle corners wherever a rounded rect appears** (see §1) - true circles stay circular.
 7. Host commentary is short (1-2 sentences), hypes or teases - never actually mean, never emoji as a
    UI icon (Fluent icons for chrome; emoji is fine as in-content flavor, e.g. a crown on #1).

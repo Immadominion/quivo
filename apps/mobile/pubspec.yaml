@@ -27,6 +27,8 @@ dependencies:
   # design + motion + feel
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.2
+  rive: ^0.14.0 # current runtime (rive_native) - renders modern .riv files (0.13 crashes on newer fill rules)
+  lottie: ^3.5.1 # .lottie (dotLottie) coin-rain
   confetti: ^0.8.0
   audioplayers: ^6.1.0
   vibration: ^2.0.1
@@ -50,6 +52,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sfx/
+    - assets/branding/
+    - assets/animations/
   fonts:
     - family: Clash Display
       fonts:
@@ -81,11 +85,14 @@ flutter_launcher_icons:
 
 # Launch splash (run: dart run flutter_native_splash:create) - logo centered on the dark mark bg,
 # matching the icon so the boot reads as one piece before the light app appears.
+# quivo-splash.png is quivo-logo.png trimmed + corner-masked to transparent (sharp) - the raw
+# logo has its own opaque black canvas, which shows as a visible mismatched box against this
+# screen's #0B0714 background otherwise.
 flutter_native_splash:
   color: "#0B0714"
-  image: "assets/branding/quivo-logo.png"
+  image: "assets/branding/quivo-splash.png"
   android: true
   ios: true
   android_12:
     color: "#0B0714"
-    image: "assets/branding/quivo-logo.png"
+    image: "assets/branding/quivo-splash.png"

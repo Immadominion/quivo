@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 
 /// Quivo "Floodlight" design tokens - see ../../../docs/DESIGN.md.
-/// One primary color (violet), no gradients as brand decisions, no shadows, squircle corners.
+/// One primary color (violet), no gradients as brand decisions, squircle corners, and (v3) a
+/// solid ink border + flat offset shadow on every card/button - matches the usequivo.fun landing.
 class QC {
   QC._();
 
@@ -59,17 +60,25 @@ class QC {
   static const rBig = 28.0;
   static const rTile = 18.0;
 
+  // v3: the neobrutalist border + shadow language shared with the usequivo.fun landing page.
+  // One weight, one offset - kept deliberately restrained, not the landing's full tilt/halftone
+  // treatment (that stays landing-only, see docs/DESIGN.md §1).
+  static const borderColor = ink;
+  static const borderWidth = 2.0;
+
   /// Superellipse ("squircle") corners - see docs/DESIGN.md. Use as `ShapeDecoration(shape: ...)`
   /// or directly as a Material `shape:`. `smoothing` 0.6 matches iOS's continuous-corner feel.
-  static ShapeBorder squircle(double radius, {double smoothing = 0.6}) => SmoothRectangleBorder(
+  /// Carries the shared `ink` border by default (v3) - pass `bordered: false` to opt out.
+  static ShapeBorder squircle(double radius, {double smoothing = 0.6, bool bordered = true}) => SmoothRectangleBorder(
+        side: bordered ? const BorderSide(color: borderColor, width: borderWidth) : BorderSide.none,
         borderRadius: SmoothBorderRadius(cornerRadius: radius, cornerSmoothing: smoothing),
       );
 
-  /// No shadows anywhere - kept as a no-op so existing `boxShadow:`/`btnShadow()` call sites don't
-  /// need touching. Depth comes from color and spacing only, never a drop shadow.
-  static List<BoxShadow> shadowCard = const [];
-  static List<BoxShadow> shadowFloat = const [];
-  static List<BoxShadow> btnShadow(Color rgb) => const [];
+  /// Flat, no-blur offset shadow - the neobrutalist signature (v3). Same black regardless of the
+  /// surface color, matching the web's `--shadow: Xpx Ypx 0px 0px var(--border)`.
+  static List<BoxShadow> shadowCard = const [BoxShadow(color: ink, offset: Offset(4, 4))];
+  static List<BoxShadow> shadowFloat = const [BoxShadow(color: ink, offset: Offset(6, 6))];
+  static List<BoxShadow> btnShadow(Color rgb) => const [BoxShadow(color: ink, offset: Offset(3, 3))];
 
   /// No-op - the old glow-blob effect (a radial-gradient "shadow") is retired along with shadows
   /// and gradients. Kept so call sites can stay as-is; it paints nothing.

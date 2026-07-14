@@ -96,6 +96,7 @@ class _PillButtonState extends State<PillButton> {
             gradient: on ? (widget.gradient ?? QC.primaryGrad) : null,
             color: on ? null : const Color(0xFFB9BCCB),
             borderRadius: BorderRadius.circular(QC.rBig),
+            border: Border.all(color: QC.borderColor, width: QC.borderWidth),
             boxShadow: on ? QC.btnShadow(widget.rgb) : null,
           ),
           child: Row(

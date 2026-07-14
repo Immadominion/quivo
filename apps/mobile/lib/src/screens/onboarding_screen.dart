@@ -1,15 +1,19 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
+import 'package:rive/rive.dart' show Fit;
 import '../data/prefs.dart';
 import '../data/wallet.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import '../util/names.dart';
 import '../widgets/atoms.dart';
+import '../widgets/rive_illustration.dart';
 
 /// First-run flow, in the order the user asked for: connect a wallet first, then three value
 /// slides (last = get started), then a name step that comes PRE-FILLED from the wallet's own label
@@ -23,17 +27,24 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 enum _Step { connect, slides, name }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  final _pc = PageController();
+  // Debug-only: jump straight to the value slides at a chosen page to preview animations
+  // (--dart-define=QUIVO_ONBOARD_SLIDES=true --dart-define=QUIVO_SLIDE=1). No-op in release.
+  static const _dbgSlides = kDebugMode && bool.fromEnvironment('QUIVO_ONBOARD_SLIDES');
+  static const _dbgSlide = int.fromEnvironment('QUIVO_SLIDE');
+
+  final _pc = PageController(initialPage: _dbgSlide);
   final _name = TextEditingController();
-  _Step _step = _Step.connect;
-  int _page = 0;
+  _Step _step = _dbgSlides ? _Step.slides : _Step.connect;
+  int _page = _dbgSlide;
   bool _saving = false;
   bool _userEdited = false;
 
   static const _slides = [
-    _Slide('🎮', 'Play live', 'Join a game show happening in the room. Answer on your phone, race the clock.'),
-    _Slide('🪙', 'Win real crypto', 'Top the leaderboard and get paid on-chain, straight to your wallet.'),
-    _Slide('⚡', 'Fast and fair', 'Every round settles on Solana. Provably fair, instantly paid.'),
+    _Slide('Play live', 'Join a game show happening in the room. Answer on your phone, race the clock.',
+        riv: 'assets/animations/play.riv'),
+    _Slide('Win real crypto', 'Top the leaderboard and get paid on-chain, straight to your wallet.', coinRain: true),
+    _Slide('Fast and fair', 'Every round settles on Solana. Provably fair, instantly paid.',
+        riv: 'assets/animations/fast.riv'),
   ];
 
   @override
@@ -66,16 +77,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _name.selection = TextSelection.collapsed(offset: name.length);
       });
     });
+    // The slides step is full-bleed (not GroundScaffold) so the win.lottie coin rain can fill the
+    // whole screen, edge to edge and behind the button. Other steps keep the padded GroundScaffold.
+    if (_step == _Step.slides) return _slidesScaffold();
     return GroundScaffold(
-      child: switch (_step) {
-        _Step.connect => _ConnectStep(onDone: _toSlides),
-        _Step.slides => _slidesView(),
-        _Step.name => _nameView(),
-      },
+      child: _step == _Step.connect ? _ConnectStep(onDone: _toSlides) : _nameView(),
     );
   }
 
-  Widget _slidesView() {
+  Widget _slidesScaffold() {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: QC.ground),
+        child: Stack(
+          children: [
+            // Raining coins: full screen (fills height, covers width), only on the "Win real crypto"
+            // slide, behind everything including the button. Decorative, never blocks taps/swipes.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ExcludeSemantics(
+                  child: AnimatedOpacity(
+                    opacity: _page == 1 ? 1 : 0,
+                    duration: 350.ms,
+                    child: Lottie.asset(
+                      'assets/animations/win.lottie',
+                      decoder: _dotLottieDecoder,
+                      fit: BoxFit.cover,
+                      repeat: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: _slidesColumn(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _slidesColumn() {
     final last = _page == _slides.length - 1;
     return Column(
       children: [
@@ -191,9 +238,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
+/// A .lottie (dotLottie) file is a zip; pick the animation JSON out of it for the lottie package.
+Future<LottieComposition?> _dotLottieDecoder(List<int> bytes) {
+  return LottieComposition.decodeZip(bytes, filePicker: (files) {
+    for (final f in files) {
+      if (f.name.startsWith('animations/') && f.name.endsWith('.json')) return f;
+    }
+    return files.isNotEmpty ? files.first : null;
+  });
+}
+
 class _Slide {
-  final String emoji, title, subtitle;
-  const _Slide(this.emoji, this.title, this.subtitle);
+  final String title, subtitle;
+
+  /// A .riv illustration shown directly (no circle/container). Null on the coin-rain slide, whose
+  /// visual is the full-screen win.lottie behind the whole page.
+  final String? riv;
+  final bool coinRain;
+  const _Slide(this.title, this.subtitle, {this.riv, this.coinRain = false});
 }
 
 class _SlideView extends StatelessWidget {
@@ -207,14 +269,11 @@ class _SlideView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 132,
-            height: 132,
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-            alignment: Alignment.center,
-            child: Text(slide.emoji, style: const TextStyle(fontSize: 64)),
-          ).animate(key: ValueKey(slide.title)).scale(begin: const Offset(0.6, 0.6), curve: Curves.easeOutBack, duration: 450.ms),
-          const SizedBox(height: 28),
+          if (slide.riv != null) ...[
+            // The rive plays directly, no circle or background behind it.
+            SizedBox(height: 260, child: RiveIllustration(slide.riv!, fit: Fit.contain)),
+            const SizedBox(height: 20),
+          ],
           Text(slide.title, style: QText.h1(context)),
           const SizedBox(height: 10),
           Text(slide.subtitle, textAlign: TextAlign.center, style: QText.body(context).copyWith(color: QC.body)),
