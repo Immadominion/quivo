@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:go_router/go_router.dart';
 import '../../data/history.dart';
 import '../../data/prefs.dart';
 import '../../data/wallet.dart';
@@ -77,12 +78,33 @@ class ProfileScreen extends ConsumerWidget {
     final traits = _dossierTraits(stats, history);
     final timeline = _dossierTimeline(history);
 
-    return SafeArea(
-      bottom: false,
+    // Pushed above the shell (not a tab anymore), so it brings its own ground + back chip.
+    return GroundScaffold(
+      padding: EdgeInsets.zero,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
-          Text('You', style: QText.h1(context)),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => context.canPop() ? context.pop() : context.go('/home'),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: QC.card,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: QC.borderColor, width: QC.borderWidth),
+                    boxShadow: QC.shadowCard,
+                  ),
+                  child: const Icon(FluentIcons.arrow_left_24_regular, size: 20, color: QC.ink),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Text('You', style: QText.h1(context)),
+            ],
+          ),
           const SizedBox(height: 18),
           Center(
             child: Column(
