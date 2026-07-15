@@ -75,7 +75,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-heading text-foreground/70">
             <span className="flex items-center gap-2">
-              <span className="size-2.5 rounded-full bg-chart-4" /> Android arm64 · 42MB · v0.1.0
+              <span className="size-2.5 rounded-full bg-chart-4" /> Android arm64 · 47MB · v0.1.0
             </span>
             <span className="flex items-center gap-2">
               <span className="size-2.5 rounded-full bg-chart-3" /> no wallet needed to join
