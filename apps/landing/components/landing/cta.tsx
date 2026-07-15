@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { APK_URL } from "@/lib/links";
 
 export function Cta() {
   return (
@@ -30,7 +31,7 @@ export function Cta() {
         </p>
         <div className="relative mt-8 flex flex-wrap items-center justify-center gap-4">
           <Button asChild size="lg" variant="neutral" className="text-base">
-            <a href="/quivo.apk" download>
+            <a href={APK_URL}>
               ⬇ Download the app
             </a>
           </Button>

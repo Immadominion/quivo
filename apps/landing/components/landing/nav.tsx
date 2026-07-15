@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { APK_URL } from "@/lib/links";
 
 export function Nav() {
   return (
@@ -24,7 +25,7 @@ export function Nav() {
             Host a game
           </a>
           <Button asChild size="sm">
-            <a href="/quivo.apk" download>
+            <a href={APK_URL}>
               ⬇ Get the app
             </a>
           </Button>

@@ -25,20 +25,51 @@ class JoinScreen extends ConsumerStatefulWidget {
   ConsumerState<JoinScreen> createState() => _JoinScreenState();
 }
 
-class _JoinScreenState extends ConsumerState<JoinScreen> {
+class _JoinScreenState extends ConsumerState<JoinScreen>
+    with WidgetsBindingObserver {
   final _ctrl = TextEditingController();
-  final _scanner = MobileScannerController();
+  final _scanner = MobileScannerController(
+    autoStart: false,
+    formats: const [BarcodeFormat.qrCode],
+  );
   bool _busy = false;
   bool _scanHandled = false;
+  bool _scannerMounted = false;
   String? _scanNote;
   Timer? _noteTimer;
+  Timer? _mountTimer;
+  Timer? _startTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _mountTimer = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      setState(() => _scannerMounted = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startScanner());
+    });
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _mountTimer?.cancel();
+    _startTimer?.cancel();
     _noteTimer?.cancel();
     _ctrl.dispose();
     _scanner.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_scannerMounted) _startScanner();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      unawaited(_scanner.stop());
+    }
   }
 
   // Real room ids are mixed-case tokens (e.g. 1VMJ0hqm5) - never uppercase or over-trim them.
@@ -55,6 +86,28 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     return null;
   }
 
+  Future<void> _startScanner({bool retry = true}) async {
+    if (!_scannerMounted) return;
+    try {
+      await _scanner.start();
+      if (mounted && _scanNote == 'Starting camera...') {
+        setState(() => _scanNote = null);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      if (retry) {
+        setState(() => _scanNote = 'Starting camera...');
+        _startTimer?.cancel();
+        _startTimer = Timer(
+          const Duration(milliseconds: 650),
+          () => _startScanner(retry: false),
+        );
+        return;
+      }
+      setState(() => _scanNote = 'Camera did not start. Type the code below.');
+    }
+  }
+
   void _onDetect(BarcodeCapture capture) {
     if (_scanHandled || _busy) return;
     for (final barcode in capture.barcodes) {
@@ -64,14 +117,17 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
       if (code != null) {
         _scanHandled = true;
         HapticFeedback.mediumImpact();
-        _scanner.stop();
+        unawaited(_scanner.stop());
         _join(code);
         return;
       }
     }
     // Something scanned, but not a Quivo code: say so briefly, keep scanning.
     if (capture.barcodes.isNotEmpty && _scanNote == null) {
-      setState(() => _scanNote = 'Not a Quivo game code. Keep aiming at the big screen.');
+      setState(
+        () =>
+            _scanNote = 'Not a Quivo game code. Keep aiming at the big screen.',
+      );
       _noteTimer?.cancel();
       _noteTimer = Timer(const Duration(seconds: 3), () {
         if (mounted) setState(() => _scanNote = null);
@@ -86,7 +142,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
       final wallet = await ref.read(walletProvider.future);
       final prefs = ref.read(prefsProvider).value;
       final name = (prefs?.name.isNotEmpty ?? false) ? prefs!.name : 'player';
-      await ref.read(gameControllerProvider.notifier).join(code.trim(), name: name, wallet: wallet.address);
+      await ref
+          .read(gameControllerProvider.notifier)
+          .join(code.trim(), name: name, wallet: wallet.address);
       if (mounted) context.push('/play');
     } finally {
       if (mounted) {
@@ -111,7 +169,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                 Row(
                   children: [
                     GestureDetector(
-                      onTap: () => context.canPop() ? context.pop() : context.go('/home'),
+                      onTap: () => context.canPop()
+                          ? context.pop()
+                          : context.go('/home'),
                       child: Container(
                         width: 44,
                         height: 44,
@@ -119,10 +179,17 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                         decoration: BoxDecoration(
                           color: QC.card,
                           shape: BoxShape.circle,
-                          border: Border.all(color: QC.borderColor, width: QC.borderWidth),
+                          border: Border.all(
+                            color: QC.borderColor,
+                            width: QC.borderWidth,
+                          ),
                           boxShadow: QC.shadowCard,
                         ),
-                        child: const Icon(FluentIcons.arrow_left_24_regular, size: 20, color: QC.ink),
+                        child: const Icon(
+                          FluentIcons.arrow_left_24_regular,
+                          size: 20,
+                          color: QC.ink,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -143,32 +210,43 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      MobileScanner(
-                        controller: _scanner,
-                        onDetect: _onDetect,
-                        fit: BoxFit.cover,
-                        placeholderBuilder: (context) => const ColoredBox(color: QC.night),
-                        // Camera denied / unavailable (simulators too): degrade to code-first.
-                        errorBuilder: (context, error) => Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(FluentIcons.camera_off_24_regular,
-                                    size: 34, color: Colors.white.withValues(alpha: 0.7)),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Camera unavailable.\nType the game code below instead.',
-                                  textAlign: TextAlign.center,
-                                  style: QText.body(context)
-                                      .copyWith(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
-                                ),
-                              ],
+                      if (_scannerMounted)
+                        MobileScanner(
+                          controller: _scanner,
+                          onDetect: _onDetect,
+                          fit: BoxFit.cover,
+                          placeholderBuilder: (context) =>
+                              const ColoredBox(color: QC.night),
+                          // Camera denied / unavailable (simulators too): degrade to code-first.
+                          errorBuilder: (context, error) => Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    FluentIcons.camera_off_24_regular,
+                                    size: 34,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Camera unavailable.\nType the game code below instead.',
+                                    textAlign: TextAlign.center,
+                                    style: QText.body(context).copyWith(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.8,
+                                      ),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                        )
+                      else
+                        const ColoredBox(color: QC.night),
                       // Corner brackets so the viewport reads as "aim here".
                       const IgnorePointer(
                         child: ExcludeSemantics(
@@ -184,13 +262,17 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                             duration: 200.ms,
                             child: Container(
                               key: ValueKey(_scanNote ?? 'hint'),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 7,
+                              ),
                               decoration: ShapeDecoration(
                                 color: Colors.black.withValues(alpha: 0.55),
                                 shape: QC.squircle(12, bordered: false),
                               ),
                               child: Text(
-                                _scanNote ?? 'Point at the QR on the big screen',
+                                _scanNote ??
+                                    'Point at the QR on the big screen',
                                 style: const TextStyle(
                                   fontFamily: 'Satoshi',
                                   fontSize: 12.5,
@@ -210,12 +292,19 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                 // ----- Persistent manual path: never hidden behind a link. -----
                 Row(
                   children: [
-                    const Expanded(child: Divider(color: QC.line, thickness: 2)),
+                    const Expanded(
+                      child: Divider(color: QC.line, thickness: 2),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('or enter the code', style: QText.muted(context)),
+                      child: Text(
+                        'or enter the code',
+                        style: QText.muted(context),
+                      ),
                     ),
-                    const Expanded(child: Divider(color: QC.line, thickness: 2)),
+                    const Expanded(
+                      child: Divider(color: QC.line, thickness: 2),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -233,15 +322,28 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                         textAlign: TextAlign.center,
                         maxLength: 12,
                         onChanged: (_) => setState(() {}),
-                        onSubmitted: (_) => _valid && !_busy ? _join(_ctrl.text) : null,
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_-]'))],
-                        style: QText.mono(context, size: 26, color: QC.ink).copyWith(letterSpacing: 4),
+                        onSubmitted: (_) =>
+                            _valid && !_busy ? _join(_ctrl.text) : null,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'[A-Za-z0-9_-]'),
+                          ),
+                        ],
+                        style: QText.mono(
+                          context,
+                          size: 26,
+                          color: QC.ink,
+                        ).copyWith(letterSpacing: 4),
                         cursorColor: QC.primary,
                         decoration: InputDecoration(
                           counterText: '',
                           border: InputBorder.none,
                           hintText: 'CODE',
-                          hintStyle: QText.mono(context, size: 26, color: QC.line).copyWith(letterSpacing: 4),
+                          hintStyle: QText.mono(
+                            context,
+                            size: 26,
+                            color: QC.line,
+                          ).copyWith(letterSpacing: 4),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -255,7 +357,12 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                   ),
                 ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
                 const SizedBox(height: 16),
-                Center(child: Text('No account needed - you are already in.', style: QText.muted(context))),
+                Center(
+                  child: Text(
+                    'No account needed - you are already in.',
+                    style: QText.muted(context),
+                  ),
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -286,10 +393,26 @@ class _CornerBrackets extends CustomPainter {
       canvas.drawLine(origin, origin + dy, paint);
     }
 
-    corner(const Offset(inset, inset), const Offset(arm, 0), const Offset(0, arm));
-    corner(Offset(w - inset, inset), const Offset(-arm, 0), const Offset(0, arm));
-    corner(Offset(inset, h - inset), const Offset(arm, 0), const Offset(0, -arm));
-    corner(Offset(w - inset, h - inset), const Offset(-arm, 0), const Offset(0, -arm));
+    corner(
+      const Offset(inset, inset),
+      const Offset(arm, 0),
+      const Offset(0, arm),
+    );
+    corner(
+      Offset(w - inset, inset),
+      const Offset(-arm, 0),
+      const Offset(0, arm),
+    );
+    corner(
+      Offset(inset, h - inset),
+      const Offset(arm, 0),
+      const Offset(0, -arm),
+    );
+    corner(
+      Offset(w - inset, h - inset),
+      const Offset(-arm, 0),
+      const Offset(0, -arm),
+    );
   }
 
   @override

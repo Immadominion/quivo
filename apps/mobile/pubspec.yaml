@@ -1,7 +1,7 @@
 name: quivo
 description: "Quivo — play a live game show on your phone, win real crypto on-chain."
 publish_to: "none"
-version: 0.1.0+1
+version: 0.1.0+2
 
 environment:
   sdk: ^3.9.0
@@ -36,11 +36,11 @@ dependencies:
   fluentui_system_icons: ^1.1.273
 
   # capability screens
-  # mobile_scanner re-added in It2 (QR) with the iOS module/deployment fix; not imported yet.
+  # Pin the scanner patch: 7.2.1 currently fails this Android Gradle setup.
   qr_flutter: ^4.1.0
   share_plus: ^10.1.3
   url_launcher: ^6.3.1
-  mobile_scanner: ^7.2.0
+  mobile_scanner: 7.2.0
 
 dev_dependencies:
   flutter_test:

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { APK_URL } from "@/lib/links";
 
 function burst() {
   confetti({
@@ -63,7 +64,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Button asChild size="lg" onClick={burst} className="text-base">
-              <a href="/quivo.apk" download>
+              <a href={APK_URL}>
                 ⬇ Download the app
               </a>
             </Button>

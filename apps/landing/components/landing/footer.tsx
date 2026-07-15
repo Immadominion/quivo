@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { APK_URL } from "@/lib/links";
 
 export function Footer() {
   return (
@@ -14,7 +15,7 @@ export function Footer() {
         </p>
 
         <nav className="flex items-center gap-5 text-sm font-heading">
-          <a href="/quivo.apk" download className="underline decoration-2 underline-offset-4 hover:text-main">
+          <a href={APK_URL} className="underline decoration-2 underline-offset-4 hover:text-main">
             APK
           </a>
           <a
