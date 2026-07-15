@@ -34,7 +34,7 @@ export function Footer() {
             Demo
           </a>
           <a
-            href="https://app.usequivo.fun"
+            href="https://quivo-stage.vercel.app"
             className="underline decoration-2 underline-offset-4 hover:text-main"
           >
             Host

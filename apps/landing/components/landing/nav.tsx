@@ -18,7 +18,7 @@ export function Nav() {
         </Link>
         <div className="flex items-center gap-3">
           <a
-            href="https://app.usequivo.fun"
+            href="https://quivo-stage.vercel.app"
             className="hidden text-sm font-heading underline decoration-2 underline-offset-4 hover:text-main sm:inline"
           >
             Host a game

@@ -68,7 +68,7 @@ export function Hero() {
               </a>
             </Button>
             <Button asChild size="lg" variant="neutral" className="text-base">
-              <a href="https://app.usequivo.fun">▶ Host a game</a>
+              <a href="https://quivo-stage.vercel.app">▶ Host a game</a>
             </Button>
           </div>
 

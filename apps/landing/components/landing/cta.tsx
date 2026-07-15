@@ -35,7 +35,7 @@ export function Cta() {
             </a>
           </Button>
           <Button asChild size="lg" variant="reverse" className="border-white bg-transparent text-base text-white">
-            <a href="https://app.usequivo.fun">▶ Host a game</a>
+            <a href="https://quivo-stage.vercel.app">▶ Host a game</a>
           </Button>
         </div>
         <p className="relative mt-5 text-xs font-base text-white/60">

@@ -19,6 +19,7 @@
 import { WebSocketServer, type WebSocket } from "ws";
 import { Client, type Room } from "colyseus.js";
 import { matchMaker } from "colyseus";
+import type { Server as HttpServer } from "node:http";
 
 const RELAY = ["question", "reveal", "podium", "settled", "anchored", "chainReady", "error"] as const;
 
@@ -29,14 +30,26 @@ const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 async function resolveRoomId(typedCode: string): Promise<string> {
   const target = normalizeCode(typedCode);
-  const rooms = await matchMaker.query({ name: "quivo" });
-  const match = rooms.find((r) => normalizeCode(r.roomId) === target);
-  return match?.roomId ?? typedCode;
+  try {
+    const rooms = await matchMaker.query({ name: "quivo" });
+    const match = rooms.find((r) => normalizeCode(r.roomId) === target);
+    return match?.roomId ?? typedCode;
+  } catch {
+    return typedCode;
+  }
 }
 
-/** Runs on its own port (default 2568) to avoid WS-upgrade contention with Colyseus. */
-export function startMobileGateway(port: number, colyseusEndpoint: string) {
-  const wss = new WebSocketServer({ port });
+type GatewayOptions =
+  | { port: number; colyseusEndpoint: string }
+  | { server: HttpServer; path: string; colyseusEndpoint: string };
+
+/** Native clients use this plain JSON gateway; in production it shares Railway's public port. */
+export function startMobileGateway(options: GatewayOptions) {
+  const wss =
+    "server" in options
+      ? new WebSocketServer({ server: options.server, path: options.path })
+      : new WebSocketServer({ port: options.port });
+  const colyseusEndpoint = options.colyseusEndpoint;
 
   wss.on("connection", (ws: WebSocket) => {
     let room: Room | null = null;
@@ -98,6 +111,7 @@ export function startMobileGateway(port: number, colyseusEndpoint: string) {
     });
   });
 
-  console.log(`[quivo] mobile JSON gateway on :${port} → ${colyseusEndpoint}`);
+  const label = "server" in options ? options.path : `:${options.port}`;
+  console.log(`[quivo] mobile JSON gateway on ${label} → ${colyseusEndpoint}`);
   return wss;
 }

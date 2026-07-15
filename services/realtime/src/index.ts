@@ -16,23 +16,29 @@ const port = Number(process.env.PORT ?? 2567);
 const mobilePort = Number(process.env.MOBILE_GATEWAY_PORT ?? port + 1);
 const redisUrl = process.env.REDIS_URL;
 
-const server = new Server(
-  redisUrl
-    ? { driver: new RedisDriver(redisUrl), presence: new RedisPresence(redisUrl) }
-    : {},
-);
+if (process.env.QUIVO_SERVICE === "mobile-gateway") {
+  const colyseusEndpoint = process.env.COLYSEUS_ENDPOINT ?? "ws://localhost:2567";
+  startMobileGateway({ port, colyseusEndpoint });
+  console.log(`[quivo] native gateway listening on :${port} → ${colyseusEndpoint}`);
+} else {
+  const server = new Server(
+    redisUrl
+      ? { driver: new RedisDriver(redisUrl), presence: new RedisPresence(redisUrl) }
+      : {},
+  );
 
-// One shared chain worker (holds the relayer key; drives escrow + settlement) injected into rooms.
-const chain = makeChainWorker();
-server.define("quivo", GameRoom, { chain });
+  // One shared chain worker (holds the relayer key; drives escrow + settlement) injected into rooms.
+  const chain = makeChainWorker();
+  server.define("quivo", GameRoom, { chain });
 
-server
-  .listen(port)
-  .then(() => {
-    console.log(`[quivo] realtime listening on :${port}${redisUrl ? " (redis-scaled)" : " (single-node)"}`);
-    startMobileGateway(mobilePort, `ws://localhost:${port}`);
-  })
-  .catch((err) => {
-    console.error("[quivo] failed to start:", err);
-    process.exit(1);
-  });
+  server
+    .listen(port)
+    .then(() => {
+      console.log(`[quivo] realtime listening on :${port}${redisUrl ? " (redis-scaled)" : " (single-node)"}`);
+      startMobileGateway({ port: mobilePort, colyseusEndpoint: `ws://localhost:${port}` });
+    })
+    .catch((err) => {
+      console.error("[quivo] failed to start:", err);
+      process.exit(1);
+    });
+}
