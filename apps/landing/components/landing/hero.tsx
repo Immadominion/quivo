@@ -58,7 +58,7 @@ export function Hero() {
           <p className="mt-6 max-w-xl text-lg font-base text-foreground/80 sm:text-xl">
             Host a live trivia game show. The room joins by scanning a QR. Every answer is
             recorded on-chain, live. Winners get paid a real crypto prize the second the game
-            ends — provably fair. Don&apos;t trust us, read the accounts.
+            ends, provably fair. Don&apos;t trust us, read the accounts.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -74,7 +74,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-heading text-foreground/70">
             <span className="flex items-center gap-2">
-              <span className="size-2.5 rounded-full bg-chart-4" /> Android · 59MB · v0.1.0
+              <span className="size-2.5 rounded-full bg-chart-4" /> Android arm64 · 42MB · v0.1.0
             </span>
             <span className="flex items-center gap-2">
               <span className="size-2.5 rounded-full bg-chart-3" /> no wallet needed to join
