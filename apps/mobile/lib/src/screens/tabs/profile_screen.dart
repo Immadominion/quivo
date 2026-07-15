@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
-import 'package:go_router/go_router.dart';
 import '../../data/history.dart';
 import '../../data/prefs.dart';
 import '../../data/wallet.dart';
@@ -12,7 +11,10 @@ import '../../widgets/gamify/gamify_atoms.dart';
 
 /// "My Dossier" flavor, trait chips + a memory timeline, computed client-side from
 /// [HistoryEntry] data already persisted locally. No new backend state (see DESIGN.md §5).
-List<(String, Color)> _dossierTraits(HistoryStats stats, List<HistoryEntry> history) {
+List<(String, Color)> _dossierTraits(
+  HistoryStats stats,
+  List<HistoryEntry> history,
+) {
   if (stats.played == 0) return const [];
   final winRate = stats.wins / stats.played;
   final podiumCount = history.where((e) => e.rank >= 1 && e.rank <= 3).length;
@@ -29,14 +31,33 @@ List<(String, Color)> _dossierTraits(HistoryStats stats, List<HistoryEntry> hist
 
 String _dossierDate(int ms) {
   final d = DateTime.fromMillisecondsSinceEpoch(ms);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return '${d.day} ${months[d.month - 1]}';
 }
 
 List<TimelineEntry> _dossierTimeline(List<HistoryEntry> history) {
   return history.take(5).map((e) {
-    final note = e.won ? 'Placed #${e.rank} · +${e.amountUsdc.toStringAsFixed(2)} USDC' : 'Placed #${e.rank}';
-    return TimelineEntry(date: _dossierDate(e.playedAtMs), note: note, dotColor: e.won ? QC.winGreen : QC.danger);
+    final note = e.won
+        ? 'Placed #${e.rank} · +${e.amountUsdc.toStringAsFixed(2)} USDC'
+        : 'Placed #${e.rank}';
+    return TimelineEntry(
+      date: _dossierDate(e.playedAtMs),
+      note: note,
+      dotColor: e.won ? QC.winGreen : QC.danger,
+    );
   }).toList();
 }
 
@@ -44,7 +65,11 @@ List<TimelineEntry> _dossierTimeline(List<HistoryEntry> history) {
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _editName(BuildContext context, WidgetRef ref, String current) async {
+  Future<void> _editName(
+    BuildContext context,
+    WidgetRef ref,
+    String current,
+  ) async {
     final ctrl = TextEditingController(text: current);
     final name = await showDialog<String>(
       context: context,
@@ -60,12 +85,20 @@ class ProfileScreen extends ConsumerWidget {
           decoration: const InputDecoration(counterText: '', hintText: 'Name'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, ctrl.text.trim()), child: const Text('Save')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
-    if (name != null && name.isNotEmpty) ref.read(prefsProvider.notifier).setName(name);
+    if (name != null && name.isNotEmpty) {
+      ref.read(prefsProvider.notifier).setName(name);
+    }
   }
 
   @override
@@ -78,38 +111,18 @@ class ProfileScreen extends ConsumerWidget {
     final traits = _dossierTraits(stats, history);
     final timeline = _dossierTimeline(history);
 
-    // Pushed above the shell (not a tab anymore), so it brings its own ground + back chip.
     return GroundScaffold(
       padding: EdgeInsets.zero,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 150),
         children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => context.canPop() ? context.pop() : context.go('/home'),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: QC.card,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: QC.borderColor, width: QC.borderWidth),
-                    boxShadow: QC.shadowCard,
-                  ),
-                  child: const Icon(FluentIcons.arrow_left_24_regular, size: 20, color: QC.ink),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Text('You', style: QText.h1(context)),
-            ],
-          ),
+          Text('Profile', style: QText.h1(context)),
           const SizedBox(height: 18),
           Center(
             child: Column(
               children: [
-                if (wallet != null) PlayerAvatar(seed: wallet.address, size: 84, initial: name),
+                if (wallet != null)
+                  PlayerAvatar(seed: wallet.address, size: 84, initial: name),
                 const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () => _editName(context, ref, name),
@@ -118,34 +131,32 @@ class ProfileScreen extends ConsumerWidget {
                     children: [
                       Text(name, style: QText.h2(context)),
                       const SizedBox(width: 8),
-                      const Icon(FluentIcons.edit_20_filled, size: 18, color: QC.muted),
+                      const Icon(
+                        FluentIcons.edit_20_filled,
+                        size: 18,
+                        color: QC.muted,
+                      ),
                     ],
                   ),
                 ),
-                if (wallet != null) Text(wallet.short, style: QText.mono(context).copyWith(fontSize: 13)),
+                if (wallet != null)
+                  Text(
+                    wallet.short,
+                    style: QText.mono(context).copyWith(fontSize: 13),
+                  ),
               ],
             ),
           ),
           const SizedBox(height: 22),
-          QCard(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _Stat(value: '${stats.played}', label: 'Games'),
-                _Divider(),
-                _Stat(value: '${stats.wins}', label: 'Wins'),
-                _Divider(),
-                _Stat(value: stats.earnedUsdc.toStringAsFixed(1), label: 'USDC won'),
-              ],
-            ),
-          ),
+          _WinningsBankCard(stats: stats),
           if (traits.isNotEmpty) ...[
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [for (final t in traits) TraitChip(label: t.$1, color: t.$2)],
+              children: [
+                for (final t in traits) TraitChip(label: t.$1, color: t.$2),
+              ],
             ),
           ],
           if (timeline.isNotEmpty) ...[
@@ -165,14 +176,16 @@ class ProfileScreen extends ConsumerWidget {
                   icon: FluentIcons.speaker_2_24_filled,
                   label: 'Sound',
                   value: prefs?.sound ?? true,
-                  onChanged: (v) => ref.read(prefsProvider.notifier).setSound(v),
+                  onChanged: (v) =>
+                      ref.read(prefsProvider.notifier).setSound(v),
                 ),
                 const Divider(height: 1, color: QC.line),
                 _ToggleRow(
                   icon: FluentIcons.phone_vibrate_24_filled,
                   label: 'Haptics',
                   value: prefs?.haptics ?? true,
-                  onChanged: (v) => ref.read(prefsProvider.notifier).setHaptics(v),
+                  onChanged: (v) =>
+                      ref.read(prefsProvider.notifier).setHaptics(v),
                 ),
               ],
             ),
@@ -185,9 +198,18 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(FluentIcons.info_20_regular, color: QC.primaryText, size: 20),
+                    const Icon(
+                      FluentIcons.info_20_regular,
+                      color: QC.primaryText,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
-                    Text('About Quivo', style: QText.body(context).copyWith(fontWeight: FontWeight.w900)),
+                    Text(
+                      'About Quivo',
+                      style: QText.body(
+                        context,
+                      ).copyWith(fontWeight: FontWeight.w900),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -197,7 +219,10 @@ class ProfileScreen extends ConsumerWidget {
                   style: QText.muted(context),
                 ),
                 const SizedBox(height: 10),
-                Text('Devnet · v0.1.0', style: QText.mono(context).copyWith(fontSize: 12)),
+                Text(
+                  'v0.1.0',
+                  style: QText.mono(context).copyWith(fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -207,29 +232,136 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
-  final String value;
-  final String label;
+class _WinningsBankCard extends StatelessWidget {
+  const _WinningsBankCard({required this.stats});
+  final HistoryStats stats;
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 24, color: QC.ink)),
-        const SizedBox(height: 2),
-        Text(label, style: QText.muted(context)),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: ShapeDecoration(
+        color: QC.night,
+        shape: QC.squircle(30),
+        shadows: QC.shadowFloat,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: QC.coinB,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  FluentIcons.trophy_24_filled,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lifetime winnings',
+                      style: QText.overline(
+                        context,
+                        color: Colors.white.withValues(alpha: 0.48),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          stats.earnedUsdc.toStringAsFixed(2),
+                          style: QText.mono(
+                            context,
+                            size: 32,
+                            weight: FontWeight.w800,
+                            color: QC.coinB,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            'USDC',
+                            style: QText.title(context).copyWith(
+                              color: Colors.white.withValues(alpha: 0.65),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _BankStat(label: 'Games', value: '${stats.played}'),
+              const SizedBox(width: 12),
+              _BankStat(label: 'Wins', value: '${stats.wins}'),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _Divider extends StatelessWidget {
+class _BankStat extends StatelessWidget {
+  const _BankStat({required this.label, required this.value});
+  final String label;
+  final String value;
+
   @override
-  Widget build(BuildContext context) => Container(width: 1, height: 34, color: QC.line);
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: ShapeDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          shape: QC.squircle(16, bordered: false),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: QText.mono(context, size: 17, color: Colors.white),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: QText.muted(context).copyWith(
+                color: Colors.white.withValues(alpha: 0.55),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ToggleRow extends StatelessWidget {
-  const _ToggleRow({required this.icon, required this.label, required this.value, required this.onChanged});
+  const _ToggleRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
   final IconData icon;
   final String label;
   final bool value;
@@ -242,8 +374,18 @@ class _ToggleRow extends StatelessWidget {
         children: [
           Icon(icon, color: QC.body, size: 22),
           const SizedBox(width: 14),
-          Expanded(child: Text(label, style: QText.body(context).copyWith(fontWeight: FontWeight.w700))),
-          Switch(value: value, activeThumbColor: Colors.white, activeTrackColor: QC.primary, onChanged: onChanged),
+          Expanded(
+            child: Text(
+              label,
+              style: QText.body(context).copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          Switch(
+            value: value,
+            activeThumbColor: Colors.white,
+            activeTrackColor: QC.primary,
+            onChanged: onChanged,
+          ),
         ],
       ),
     );

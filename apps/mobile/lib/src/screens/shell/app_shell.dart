@@ -1,20 +1,25 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 
-/// Bottom-nav shell: exactly three elements. Two icon tabs (Home, Wallet) flanking a big raised
+/// Bottom-nav shell: exactly three elements. Two icon tabs (Home, Profile) flanking a big raised
 /// JOIN button with concentric rings - joining by QR is Quivo's hero action, the exact analog of
-/// the scanner button this pattern comes from. Profile opens from the home avatar; History is a
-/// pushed screen reachable from Home's "See all" and from Wallet.
+/// the scanner button this pattern comes from. History is pushed from Home; Receive is a bottom
+/// sheet from Home.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
   void _go(int i) {
     HapticFeedback.lightImpact();
-    navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex);
+    navigationShell.goBranch(
+      i,
+      initialLocation: i == navigationShell.currentIndex,
+    );
   }
 
   @override
@@ -23,6 +28,7 @@ class AppShell extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(gradient: QC.ground),
       child: Scaffold(
+        extendBody: true,
         backgroundColor: Colors.transparent,
         body: navigationShell,
         bottomNavigationBar: SafeArea(
@@ -37,39 +43,49 @@ class AppShell extends StatelessWidget {
                   left: 42,
                   right: 42,
                   bottom: 10,
-                  child: Container(
-                    height: 62,
-                    decoration: ShapeDecoration(
-                      color: QC.night,
-                      shape: QC.squircle(31),
-                      shadows: QC.shadowFloat,
-                    ),
-                    child: Row(
-                      children: [
-                        // One tab per side, perfectly mirrored around the raised JOIN button.
-                        Expanded(
-                          child: Center(
-                            child: _TabDot(
-                              icon: index == 0 ? FluentIcons.home_24_filled : FluentIcons.home_24_regular,
-                              label: 'Home',
-                              active: index == 0,
-                              onTap: () => _go(0),
-                            ),
-                          ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(31),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: Container(
+                        height: 62,
+                        decoration: ShapeDecoration(
+                          color: QC.night.withValues(alpha: 0.92),
+                          shape: QC.squircle(31),
+                          shadows: QC.shadowFloat,
                         ),
-                        // Well under the raised JOIN button.
-                        const SizedBox(width: 74),
-                        Expanded(
-                          child: Center(
-                            child: _TabDot(
-                              icon: index == 1 ? FluentIcons.wallet_24_filled : FluentIcons.wallet_24_regular,
-                              label: 'Wallet',
-                              active: index == 1,
-                              onTap: () => _go(1),
+                        child: Row(
+                          children: [
+                            // One tab per side, perfectly mirrored around the raised JOIN button.
+                            Expanded(
+                              child: Center(
+                                child: _TabDot(
+                                  icon: index == 0
+                                      ? FluentIcons.home_24_filled
+                                      : FluentIcons.home_24_regular,
+                                  label: 'Home',
+                                  active: index == 0,
+                                  onTap: () => _go(0),
+                                ),
+                              ),
                             ),
-                          ),
+                            // Well under the raised JOIN button.
+                            const SizedBox(width: 74),
+                            Expanded(
+                              child: Center(
+                                child: _TabDot(
+                                  icon: index == 1
+                                      ? FluentIcons.person_24_filled
+                                      : FluentIcons.person_24_regular,
+                                  label: 'Profile',
+                                  active: index == 1,
+                                  onTap: () => _go(1),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -77,10 +93,12 @@ class AppShell extends StatelessWidget {
                 // the pill. This is the one way into a game from anywhere in the shell.
                 Positioned(
                   top: 0,
-                  child: _JoinButton(onTap: () {
-                    HapticFeedback.mediumImpact();
-                    context.push('/join');
-                  }),
+                  child: _JoinButton(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      context.push('/join');
+                    },
+                  ),
                 ),
               ],
             ),
@@ -94,7 +112,12 @@ class AppShell extends StatelessWidget {
 /// Icon-only circular tab button inside the pill. Active = flat primary circle with a white ring;
 /// inactive = bare icon at half opacity.
 class _TabDot extends StatelessWidget {
-  const _TabDot({required this.icon, required this.label, required this.active, required this.onTap});
+  const _TabDot({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
   final IconData icon;
   final String label;
   final bool active;
@@ -119,7 +142,11 @@ class _TabDot extends StatelessWidget {
             shape: BoxShape.circle,
             border: active ? Border.all(color: Colors.white, width: 2) : null,
           ),
-          child: Icon(icon, size: 22, color: active ? Colors.white : Colors.white.withValues(alpha: 0.55)),
+          child: Icon(
+            icon,
+            size: 22,
+            color: active ? Colors.white : Colors.white.withValues(alpha: 0.55),
+          ),
         ),
       ),
     );
@@ -163,10 +190,17 @@ class _JoinButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: QC.primary,
                 shape: BoxShape.circle,
-                border: Border.all(color: QC.borderColor, width: QC.borderWidth),
+                border: Border.all(
+                  color: QC.borderColor,
+                  width: QC.borderWidth,
+                ),
                 boxShadow: QC.btnShadow(QC.primary),
               ),
-              child: const Icon(FluentIcons.qr_code_24_filled, color: Colors.white, size: 28),
+              child: const Icon(
+                FluentIcons.qr_code_24_filled,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
           ),
         ),

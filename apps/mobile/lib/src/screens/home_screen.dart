@@ -1,8 +1,10 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../data/history.dart';
 import '../data/prefs.dart';
 import '../data/wallet.dart';
@@ -10,42 +12,15 @@ import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import '../widgets/atoms.dart';
 import '../widgets/gamify/gamify_atoms.dart';
-import '../widgets/gamify/host_card.dart';
 
-/// Home. Joining lives on the nav's raised JOIN button, so this screen is a real hub: a big
-/// personal greeting as the hero, Q talking, your form, and your recent games. Everything on it is
-/// real persisted data - no instructional filler.
+/// Home is a focused game hub: identity, the next join action, and recent activity.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  /// Q's line, derived from the player's real persisted record (the Cleo pattern: cite the user's
-  /// own numbers; users can't dismiss their own stats as filler). State-triggered, most-specific
-  /// state first; it changes when your record changes, never on a schedule. Voice: hype, tease,
-  /// never mean.
-  static String _qLine(List<HistoryEntry> history) {
-    if (history.isEmpty) {
-      return "First round's the scariest. After that you're hooked. I'll be watching.";
-    }
-    var streak = 0;
-    for (final e in history) {
-      if (!e.won) break;
-      streak++;
-    }
-    final last = history.first;
-    if (streak >= 2) {
-      return '$streak wins on the bounce. One more and I name a trophy after you.';
-    }
-    if (last.won) {
-      return '+${last.amountUsdc.toStringAsFixed(2)} USDC last game. The room knows your name now.';
-    }
-    if (last.rank <= 3) {
-      return '#${last.rank} of ${last.players} last game. One spot off the money. One.';
-    }
-    return '#${last.rank} of ${last.players} last time. We both know that was a warm-up.';
-  }
-
   String _ago(int ms) {
-    final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms));
+    final diff = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(ms),
+    );
     if (diff.inMinutes < 1) return 'just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
@@ -54,21 +29,41 @@ class HomeScreen extends ConsumerWidget {
     return '${d.day}/${d.month}';
   }
 
+  void _copyAddress(BuildContext context, String address) {
+    Clipboard.setData(ClipboardData(text: address));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Address copied'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showReceiveSheet(BuildContext context, Wallet wallet) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ReceiveSheet(
+        wallet: wallet,
+        onCopy: () => _copyAddress(context, wallet.address),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(prefsProvider).value;
     final wallet = ref.watch(walletProvider).value;
-    final stats = ref.watch(historyStatsProvider);
     final history = ref.watch(historyProvider).value ?? const <HistoryEntry>[];
     final name = (prefs?.name.isNotEmpty ?? false) ? prefs!.name : 'player';
-    final qLine = _qLine(history);
 
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 130),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 150),
         children: [
-          // ----- Hero: the greeting IS the headline. Name sits in a tilted primary chip. -----
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -76,98 +71,64 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Hey,', style: QText.h1(context).copyWith(fontSize: 38, height: 1.0)),
+                    Text(
+                      'Hey,',
+                      style: QText.h1(
+                        context,
+                      ).copyWith(fontSize: 38, height: 1.0),
+                    ),
                     const SizedBox(height: 6),
-                    Transform.rotate(
-                      angle: -0.035,
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 250),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                        decoration: ShapeDecoration(
-                          color: QC.primary,
-                          shape: QC.squircle(14),
-                          shadows: QC.shadowCard,
-                        ),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontFamily: 'Clash Display',
-                              fontWeight: FontWeight.w700,
-                              fontSize: 30,
-                              color: Colors.white,
-                            ),
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 260),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: ShapeDecoration(
+                        color: QC.primary,
+                        shape: QC.squircle(16),
+                        shadows: QC.shadowCard,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontFamily: 'Clash Display',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 30,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text('Ready to play?', style: QText.muted(context)),
+                    Text(
+                      'Ready when the room goes live.',
+                      style: QText.muted(context),
+                    ),
                   ],
                 ),
               ),
-              if (wallet != null)
-                GestureDetector(
-                  onTap: () => context.push('/profile'),
-                  // Debug builds: long-press the avatar to open the phase preview harness.
-                  onLongPress: kDebugMode ? () => context.push('/preview') : null,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: QC.borderColor, width: QC.borderWidth),
-                      boxShadow: QC.shadowCard,
-                    ),
-                    child: PlayerAvatar(seed: wallet.address, size: 52, initial: name),
-                  ),
-                ),
             ],
           ).animate().fadeIn(duration: 300.ms),
           const SizedBox(height: 22),
-
-          // ----- Q, the host. -----
-          HostCard(line: qLine, ctaLabel: 'Join a game', onTap: () => context.push('/join')),
-          const SizedBox(height: 16),
-
-          // ----- Your form: real stats + last-5 streak. -----
-          QCard(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('YOUR FORM', style: QText.overline(context)),
-                    if (history.isNotEmpty)
-                      StreakRow(
-                        results: [
-                          for (var i = 0; i < 5; i++) i < history.length ? history[i].won : null,
-                        ],
-                        size: 20,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                StatTrio(
-                  dark: false,
-                  items: [
-                    ('GAMES', '${stats.played}', null),
-                    ('WINS', '${stats.wins}', QC.winGreen),
-                    ('USDC WON', stats.earnedUsdc.toStringAsFixed(2), QC.coinB),
-                  ],
-                ),
-              ],
-            ),
-          ).animate().fadeIn(delay: 80.ms, duration: 300.ms).slideY(begin: 0.05, end: 0),
-          const SizedBox(height: 22),
-
-          // ----- Recent games (real history) or the first-game nudge. -----
+          const _FeaturedRoomCard()
+              .animate()
+              .fadeIn(delay: 60.ms, duration: 320.ms)
+              .slideY(begin: 0.05, end: 0),
+          if (wallet != null) ...[
+            const SizedBox(height: 18),
+            _ReceiveHomeRow(onTap: () => _showReceiveSheet(context, wallet)),
+          ],
+          const SizedBox(height: 26),
+          SectionHeader(
+            title: 'History',
+            onSeeAll: history.isEmpty ? null : () => context.push('/history'),
+          ),
+          const SizedBox(height: 12),
           if (history.isNotEmpty) ...[
-            SectionHeader(title: 'Recent games', onSeeAll: () => context.push('/history')),
-            const SizedBox(height: 12),
             for (final (i, e) in history.take(3).indexed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -177,20 +138,239 @@ class HomeScreen extends ConsumerWidget {
                     .slideY(begin: 0.06, end: 0),
               ),
           ] else
-            QCard(
-              color: QC.cardTint,
+            const _EmptyGames().animate().fadeIn(
+              delay: 120.ms,
+              duration: 300.ms,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeaturedRoomCard extends StatelessWidget {
+  const _FeaturedRoomCard();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: ShapeDecoration(
+        color: QC.night,
+        shape: QC.squircle(QC.rBig),
+        shadows: QC.shadowFloat,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: QC.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  FluentIcons.qr_code_24_filled,
+                  color: Colors.white,
+                  size: 25,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'LIVE ROOM',
+                style: QText.overline(
+                  context,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 26),
+          Text(
+            'Live room',
+            style: QText.h1(
+              context,
+            ).copyWith(color: Colors.white, fontSize: 32, height: 1.0),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'When the host opens a game, use the center scanner below to enter the room.',
+            style: QText.muted(context).copyWith(
+              color: Colors.white.withValues(alpha: 0.68),
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReceiveHomeRow extends StatelessWidget {
+  const _ReceiveHomeRow({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: QCard(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        color: QC.cardTint,
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: QC.primary,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                FluentIcons.arrow_download_24_filled,
+                color: Colors.white,
+                size: 23,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('No games yet', style: QText.title(context)),
-                  const SizedBox(height: 6),
                   Text(
-                    'Tap the big button below when the host puts the QR on the screen.',
-                    textAlign: TextAlign.center,
+                    'Receive',
+                    style: QText.body(
+                      context,
+                    ).copyWith(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Open your payout QR code.',
                     style: QText.muted(context),
                   ),
                 ],
               ),
-            ).animate().fadeIn(delay: 120.ms, duration: 300.ms),
+            ),
+            const Icon(
+              FluentIcons.chevron_right_24_filled,
+              color: QC.primaryText,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReceiveSheet extends StatelessWidget {
+  const _ReceiveSheet({required this.wallet, required this.onCopy});
+  final Wallet wallet;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
+        decoration: ShapeDecoration(color: QC.card, shape: QC.squircle(30)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 5,
+              decoration: BoxDecoration(
+                color: QC.line,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Receive', style: QText.h1(context)),
+            const SizedBox(height: 6),
+            Text(
+              'Prizes and transfers land at this wallet.',
+              textAlign: TextAlign.center,
+              style: QText.muted(context),
+            ),
+            const SizedBox(height: 24),
+            QrImageView(
+              data: wallet.address,
+              version: QrVersions.auto,
+              size: 220,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.circle,
+                color: QC.ink,
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.circle,
+                color: QC.ink,
+              ),
+            ),
+            const SizedBox(height: 22),
+            GestureDetector(
+              onTap: onCopy,
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 52),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                decoration: ShapeDecoration(
+                  color: QC.cardTint,
+                  shape: QC.squircle(20),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        wallet.short,
+                        textAlign: TextAlign.center,
+                        style: QText.mono(context, size: 14, color: QC.ink),
+                      ),
+                    ),
+                    const Icon(
+                      FluentIcons.copy_20_regular,
+                      color: QC.primaryText,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyGames extends StatelessWidget {
+  const _EmptyGames();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Column(
+        children: [
+          const Icon(
+            FluentIcons.ticket_diagonal_24_regular,
+            color: QC.muted,
+            size: 34,
+          ),
+          const SizedBox(height: 12),
+          Text('No games yet', style: QText.title(context)),
+          const SizedBox(height: 6),
+          Text(
+            'When you play, results and payouts appear here.',
+            textAlign: TextAlign.center,
+            style: QText.muted(context),
+          ),
         ],
       ),
     );
@@ -237,14 +417,28 @@ class _GameRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Game ${entry.code}', style: QText.body(context).copyWith(fontWeight: FontWeight.w700)),
-                Text('$ago · ${entry.players} players', style: QText.muted(context).copyWith(fontSize: 12)),
+                Text(
+                  'Game ${entry.code}',
+                  style: QText.body(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  '$ago · ${entry.players} players',
+                  style: QText.muted(context).copyWith(fontSize: 12),
+                ),
               ],
             ),
           ),
           Text(
-            entry.won ? '+${entry.amountUsdc.toStringAsFixed(2)}' : '${entry.score} pts',
-            style: QText.mono(context, size: 13, color: entry.won ? QC.winGreen : QC.muted),
+            entry.won
+                ? '+${entry.amountUsdc.toStringAsFixed(2)}'
+                : '${entry.score} pts',
+            style: QText.mono(
+              context,
+              size: 13,
+              color: entry.won ? QC.winGreen : QC.muted,
+            ),
           ),
         ],
       ),
